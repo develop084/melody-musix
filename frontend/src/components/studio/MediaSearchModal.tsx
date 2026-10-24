@@ -21,11 +21,12 @@ import {
 interface MediaSearchModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialQuery?: string;
 }
 
-export function MediaSearchModal({ isOpen, onClose }: MediaSearchModalProps) {
+export function MediaSearchModal({ isOpen, onClose, initialQuery }: MediaSearchModalProps) {
   const [tab, setTab] = useState<'youtube' | 'samples' | 'upload'>('youtube');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(initialQuery || '');
   const [isSearching, setIsSearching] = useState(false);
   const [results, setResults] = useState<MediaTrack[]>([]);
   const [samples, setSamples] = useState<MediaTrack[]>([]);
@@ -37,6 +38,21 @@ export function MediaSearchModal({ isOpen, onClose }: MediaSearchModalProps) {
 
   const setSourceTrack = useStudioStore((state) => state.setSourceTrack);
   const setIsProcessingAudio = useStudioStore((state) => state.setIsProcessingAudio);
+
+  // Auto-search if initialQuery provided
+  useEffect(() => {
+    if (isOpen && initialQuery) {
+      setSearchQuery(initialQuery);
+      setTab('youtube');
+      setIsSearching(true);
+      setError(null);
+      mediaApi
+        .search(initialQuery)
+        .then(setResults)
+        .catch((err) => setError(err.response?.data?.message || 'Failed to search YouTube media'))
+        .finally(() => setIsSearching(false));
+    }
+  }, [isOpen, initialQuery]);
 
   // Stop preview audio helper
   const stopAudioPreview = () => {

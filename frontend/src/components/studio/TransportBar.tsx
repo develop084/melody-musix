@@ -32,13 +32,39 @@ interface TransportBarProps {
   onOpenSourceModal: () => void;
 }
 
+function TimeDisplay() {
+  const currentTimeMs = useStudioStore((s) => s.currentTimeMs);
+  const durationMs = useStudioStore((s) => s.durationMs);
+
+  const totalSec = Math.floor(currentTimeMs / 1000);
+  const mins = Math.floor(totalSec / 60)
+    .toString()
+    .padStart(2, '0');
+  const secs = (totalSec % 60).toString().padStart(2, '0');
+  const millis = Math.floor((currentTimeMs % 1000) / 100);
+
+  const durTotalSec = Math.floor(durationMs / 1000);
+  const durMins = Math.floor(durTotalSec / 60)
+    .toString()
+    .padStart(2, '0');
+  const durSecs = (durTotalSec % 60).toString().padStart(2, '0');
+
+  return (
+    <div className="flex items-center gap-1 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg bg-slate-900 text-white font-mono text-xs sm:text-sm tracking-wider shadow-inner">
+      <Clock className="w-3 h-3 text-blue-400 hidden sm:inline" />
+      <span className="text-emerald-400 font-bold">{mins}:{secs}.{millis}</span>
+      <span className="text-slate-600">/</span>
+      <span className="text-slate-400">{durMins}:{durSecs}</span>
+    </div>
+  );
+}
+
 export function TransportBar({ onOpenProjects, onOpenSourceModal }: TransportBarProps) {
   const {
     projectTitle,
     tracks,
     bpm,
     durationMs,
-    currentTimeMs,
     isPlaying,
     isLooping,
     toggleLoop,
@@ -90,17 +116,6 @@ export function TransportBar({ onOpenProjects, onOpenSourceModal }: TransportBar
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [canUndo, canRedo, undo, redo]);
-
-  // Time formatting helper
-  const formatTime = (ms: number) => {
-    const totalSec = Math.floor(ms / 1000);
-    const mins = Math.floor(totalSec / 60)
-      .toString()
-      .padStart(2, '0');
-    const secs = (totalSec % 60).toString().padStart(2, '0');
-    const millis = Math.floor((ms % 1000) / 100);
-    return `${mins}:${secs}.${millis}`;
-  };
 
   const handleTogglePlay = () => {
     if (isPlaying) {
@@ -307,12 +322,7 @@ export function TransportBar({ onOpenProjects, onOpenSourceModal }: TransportBar
             </Button>
 
             {/* Time Counter Display */}
-            <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-900 text-white font-mono text-xs sm:text-sm tracking-wider shadow-inner">
-              <Clock className="w-3 h-3 text-blue-400 hidden sm:inline" />
-              <span className="text-emerald-400 font-bold">{formatTime(currentTimeMs)}</span>
-              <span className="text-slate-600">/</span>
-              <span className="text-slate-400">{formatTime(durationMs)}</span>
-            </div>
+            <TimeDisplay />
 
             {/* Master Real-time VU Visualizer */}
             <MasterVisualizer />

@@ -8,17 +8,86 @@ import {
   Play,
   Square,
   Plus,
-  Volume2,
-  Sliders,
   Sparkles,
+  Search,
+  Music2,
+  CheckCircle2,
+  ArrowRight,
+  Loader2,
+  X,
+  Volume2,
 } from 'lucide-react';
 
 export interface WaveformTrimmerProps {
-  onOpenSourceModal?: () => void;
+  onOpenSourceModal?: (query?: string) => void;
 }
+
+const QUICK_SAMPLES = [
+  {
+    id: 'sample-synth-lead',
+    title: 'Neon Dream',
+    subtitle: 'Lead Synth Riff',
+    bpm: '120 BPM',
+    icon: '🎹',
+    url: '/api/v1/media/stream?videoId=sample-synth-lead',
+    duration: '0:06',
+    border: 'border-blue-200 hover:border-blue-400 bg-blue-50/50',
+    badge: 'bg-blue-100 text-blue-700',
+    btn: 'bg-blue-600 hover:bg-blue-700 text-white',
+  },
+  {
+    id: 'sample-lofi-keys',
+    title: 'Lo-Fi Rhodes',
+    subtitle: 'Electric Piano Chords',
+    bpm: '85 BPM',
+    icon: '🎸',
+    url: '/api/v1/media/stream?videoId=sample-lofi-keys',
+    duration: '0:08',
+    border: 'border-purple-200 hover:border-purple-400 bg-purple-50/50',
+    badge: 'bg-purple-100 text-purple-700',
+    btn: 'bg-purple-600 hover:bg-purple-700 text-white',
+  },
+  {
+    id: 'sample-drums',
+    title: 'Boom Bap',
+    subtitle: 'Vinyl Drums & Beat',
+    bpm: '90 BPM',
+    icon: '🥁',
+    url: '/api/v1/media/stream?videoId=sample-drums',
+    duration: '0:04',
+    border: 'border-amber-200 hover:border-amber-400 bg-amber-50/50',
+    badge: 'bg-amber-100 text-amber-700',
+    btn: 'bg-amber-600 hover:bg-amber-700 text-white',
+  },
+  {
+    id: 'sample-acoustic',
+    title: 'Sunset Guitar',
+    subtitle: 'Nylon Acoustic Chords',
+    bpm: '110 BPM',
+    icon: '🌊',
+    url: '/api/v1/media/stream?videoId=sample-acoustic',
+    duration: '0:08',
+    border: 'border-emerald-200 hover:border-emerald-400 bg-emerald-50/50',
+    badge: 'bg-emerald-100 text-emerald-700',
+    btn: 'bg-emerald-600 hover:bg-emerald-700 text-white',
+  },
+  {
+    id: 'sample-bass-groove',
+    title: 'Midnight Funk',
+    subtitle: 'Deep Bassline Riff',
+    bpm: '115 BPM',
+    icon: '🎷',
+    url: '/api/v1/media/stream?videoId=sample-bass-groove',
+    duration: '0:04',
+    border: 'border-rose-200 hover:border-rose-400 bg-rose-50/50',
+    badge: 'bg-rose-100 text-rose-700',
+    btn: 'bg-rose-600 hover:bg-rose-700 text-white',
+  },
+];
 
 export function WaveformTrimmer({ onOpenSourceModal }: WaveformTrimmerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const deckAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const {
     sourceTrackInfo,
@@ -38,12 +107,30 @@ export function WaveformTrimmer({ onOpenSourceModal }: WaveformTrimmerProps) {
     setIsSnippetPlaying,
     setSelectedTrackId,
     addClipToSelectedTrack,
+    addDirectSampleClip,
+    setSourceTrack,
+    clearSourceTrack,
+    setIsProcessingAudio,
   } = useStudioStore();
 
   const [snippetPlaybackMs, setSnippetPlaybackMs] = useState<number | null>(null);
+  const [deckPreviewId, setDeckPreviewId] = useState<string | null>(null);
+  const [addingSampleId, setAddingSampleId] = useState<string | null>(null);
+  const [quickSearchInput, setQuickSearchInput] = useState('');
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   const totalDurationSec = sourceAudioBuffer?.duration || 1;
   const totalDurationMs = Math.floor(totalDurationSec * 1000);
+
+  // Clean up deck audio on unmount
+  useEffect(() => {
+    return () => {
+      if (deckAudioRef.current) {
+        deckAudioRef.current.pause();
+        deckAudioRef.current = null;
+      }
+    };
+  }, []);
 
   // Live playhead tracking during snippet preview
   useEffect(() => {
@@ -138,6 +225,73 @@ export function WaveformTrimmer({ onOpenSourceModal }: WaveformTrimmerProps) {
     }
   }, [sourceAudioBuffer, trimStartMs, trimEndMs, totalDurationMs, snippetPlaybackMs]);
 
+  const toggleDeckPreview = (sample: (typeof QUICK_SAMPLES)[0]) => {
+    if (deckPreviewId === sample.id) {
+      if (deckAudioRef.current) {
+        deckAudioRef.current.pause();
+        deckAudioRef.current = null;
+      }
+      setDeckPreviewId(null);
+      return;
+    }
+
+    if (deckAudioRef.current) {
+      deckAudioRef.current.pause();
+    }
+
+    const audio = new Audio(sample.url);
+    deckAudioRef.current = audio;
+    setDeckPreviewId(sample.id);
+
+    audio.play().catch(() => setDeckPreviewId(null));
+    audio.onended = () => setDeckPreviewId(null);
+  };
+
+  const handleQuickAdd = async (sample: (typeof QUICK_SAMPLES)[0]) => {
+    setAddingSampleId(sample.id);
+    try {
+      await addDirectSampleClip(
+        {
+          id: sample.id,
+          title: sample.title,
+          url: sample.url,
+          duration: sample.duration,
+        },
+        selectedTrackId
+      );
+      const targetName = tracks.find((t) => t.id === selectedTrackId)?.name || 'Track';
+      setToastMsg(`✨ Added "${sample.title}" to ${targetName}!`);
+      setTimeout(() => setToastMsg(null), 3500);
+    } finally {
+      setAddingSampleId(null);
+    }
+  };
+
+  const handleQuickTrim = async (sample: (typeof QUICK_SAMPLES)[0]) => {
+    if (deckAudioRef.current) {
+      deckAudioRef.current.pause();
+      deckAudioRef.current = null;
+      setDeckPreviewId(null);
+    }
+    setIsProcessingAudio(true, `Loading "${sample.title}" into trimmer...`);
+    try {
+      const buffer = await audioEngine.decodeAudioFromUrl(sample.url);
+      setSourceTrack(
+        {
+          id: sample.id,
+          title: sample.title,
+          url: sample.url,
+          duration: sample.duration,
+        },
+        buffer
+      );
+    } catch (err) {
+      console.warn('Failed to load sample into trimmer:', err);
+    } finally {
+      setIsProcessingAudio(false);
+    }
+  };
+
   const handlePlaySnippet = () => {
     if (!sourceAudioBuffer) return;
 
@@ -158,30 +312,143 @@ export function WaveformTrimmer({ onOpenSourceModal }: WaveformTrimmerProps) {
     });
   };
 
+  const handleAddSnippet = () => {
+    addClipToSelectedTrack();
+    const targetName = tracks.find((t) => t.id === selectedTrackId)?.name || 'Track';
+    setToastMsg(`✨ Added snippet to ${targetName}!`);
+    setTimeout(() => setToastMsg(null), 3500);
+  };
+
+  // State 1: When no song is loaded in trimmer, show the interactive Quick Melody Deck
   if (!sourceTrackInfo || !sourceAudioBuffer) {
     return (
-      <Card className="border-dashed border-2 border-slate-200 bg-white">
-        <CardContent className="py-7 text-center space-y-3">
-          <div className="h-10 w-10 rounded-xl bg-indigo-50 text-indigo-600 mx-auto flex items-center justify-center">
-            <Scissors className="w-5 h-5" />
+      <Card className="border-slate-200 shadow-sm bg-white overflow-hidden">
+        {/* Header with Title & Quick YouTube Search Bar */}
+        <div className="p-3 sm:p-4 bg-gradient-to-r from-indigo-50/70 via-blue-50/40 to-white border-b border-slate-100 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="h-9 w-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm flex-shrink-0">
+              <Music2 className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                Instant Sound & Melody Deck
+                <span className="text-[10px] font-semibold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
+                  1-Tap to Add
+                </span>
+              </h3>
+              <p className="text-[11px] text-slate-500">
+                Click any loop to preview & drop onto your timeline, or search YouTube for songs.
+              </p>
+            </div>
           </div>
-          <div>
-            <h4 className="text-sm font-bold text-slate-800">No Song Loaded in Trimmer</h4>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto mt-0.5">
-              Select or search a song on YouTube, or choose from our studio loops to extract snippets.
-            </p>
-          </div>
-          {onOpenSourceModal && (
-            <Button size="sm" onClick={onOpenSourceModal} className="text-xs bg-indigo-600 hover:bg-indigo-700 shadow-sm">
-              <Sparkles className="w-3.5 h-3.5 mr-1.5" />
-              Search YouTube / Browse Loops
+
+          {/* Quick YouTube Search Input */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              onOpenSourceModal?.(quickSearchInput);
+            }}
+            className="flex items-center gap-1.5 w-full md:w-auto"
+          >
+            <div className="relative flex-1 md:w-64">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={quickSearchInput}
+                onChange={(e) => setQuickSearchInput(e.target.value)}
+                placeholder="Search song or artist on YouTube..."
+                className="w-full text-xs pl-8 pr-2.5 py-1.5 rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-indigo-500"
+              />
+            </div>
+            <Button
+              type="submit"
+              size="sm"
+              className="text-xs bg-indigo-600 hover:bg-indigo-700 shadow-sm flex-shrink-0 font-semibold"
+            >
+              Search
             </Button>
+          </form>
+        </div>
+
+        {/* 5 Quick Sample Cards */}
+        <div className="p-3 sm:p-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5">
+            {QUICK_SAMPLES.map((sample) => {
+              const isPreviewing = deckPreviewId === sample.id;
+              const isAdding = addingSampleId === sample.id;
+
+              return (
+                <div
+                  key={sample.id}
+                  className={`rounded-xl border p-2.5 flex flex-col justify-between transition-all duration-200 hover:shadow-sm ${sample.border}`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xl">{sample.icon}</span>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${sample.badge}`}>
+                        {sample.bpm}
+                      </span>
+                    </div>
+                    <h4 className="text-xs font-bold text-slate-900 leading-tight">{sample.title}</h4>
+                    <p className="text-[10px] text-slate-500 leading-tight mt-0.5">{sample.subtitle}</p>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 mt-3 pt-2 border-t border-slate-200/60">
+                    <button
+                      type="button"
+                      onClick={() => toggleDeckPreview(sample)}
+                      className={`h-7 w-7 rounded-lg flex items-center justify-center transition-all ${
+                        isPreviewing
+                          ? 'bg-amber-500 text-white shadow-sm'
+                          : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+                      }`}
+                      title={isPreviewing ? 'Stop Preview' : 'Audition Loop'}
+                    >
+                      {isPreviewing ? (
+                        <Square className="w-3 h-3 fill-current" />
+                      ) : (
+                        <Play className="w-3 h-3 fill-current ml-0.5" />
+                      )}
+                    </button>
+
+                    <Button
+                      size="sm"
+                      onClick={() => handleQuickAdd(sample)}
+                      isLoading={isAdding}
+                      className={`flex-1 text-[11px] h-7 px-2 font-semibold shadow-sm flex items-center justify-center ${sample.btn}`}
+                      title={`Add to ${tracks.find((t) => t.id === selectedTrackId)?.name || 'Track'}`}
+                    >
+                      <Plus className="w-3 h-3 mr-1" />
+                      Add to Track
+                    </Button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleQuickTrim(sample)}
+                      className="h-7 w-7 rounded-lg bg-white border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-100 flex items-center justify-center"
+                      title="Fine-tune with Trimmer"
+                    >
+                      <Scissors className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Toast Notification */}
+          {toastMsg && (
+            <div className="mt-3 p-2 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 text-xs font-semibold flex items-center gap-2 animate-in fade-in duration-150">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              <span>{toastMsg}</span>
+            </div>
           )}
-        </CardContent>
+        </div>
       </Card>
     );
   }
 
+  // State 2: When a song is loaded in the trimmer, display the precision waveform trimmer
   const snippetDurationSec = ((trimEndMs - trimStartMs) / 1000).toFixed(2);
 
   const handleCanvasInteraction = (clientX: number) => {
@@ -222,16 +489,27 @@ export function WaveformTrimmer({ onOpenSourceModal }: WaveformTrimmerProps) {
         <div>
           <CardTitle className="text-sm font-bold flex items-center gap-2">
             <Scissors className="w-4 h-4 text-blue-600 flex-shrink-0" />
-            <span className="truncate">Snippet Trimmer: <span className="text-blue-700">{sourceTrackInfo.title}</span></span>
+            <span className="truncate">
+              Snippet Trimmer: <span className="text-blue-700">{sourceTrackInfo.title}</span>
+            </span>
           </CardTitle>
           <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
             Tap waveform or adjust sliders to extract riffs, chords, or hooks
           </p>
         </div>
-        <div className="flex items-center gap-1.5 self-start sm:self-auto">
+        <div className="flex items-center gap-2 self-start sm:self-auto">
           <span className="text-xs font-mono font-bold bg-blue-50 text-blue-700 px-2.5 py-1 rounded-md border border-blue-200">
             Snippet: {snippetDurationSec}s
           </span>
+          <button
+            type="button"
+            onClick={clearSourceTrack}
+            className="text-xs text-slate-500 hover:text-slate-800 font-medium px-2 py-1 rounded hover:bg-slate-100 flex items-center gap-1 border border-slate-200"
+            title="Return to Quick Sound Deck"
+          >
+            <X className="w-3.5 h-3.5" />
+            <span>Sound Deck</span>
+          </button>
         </div>
       </CardHeader>
 
@@ -417,7 +695,7 @@ export function WaveformTrimmer({ onOpenSourceModal }: WaveformTrimmerProps) {
 
             <Button
               size="sm"
-              onClick={() => addClipToSelectedTrack()}
+              onClick={handleAddSnippet}
               className="text-xs h-9 px-3.5 bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-500/20 text-white font-semibold flex items-center justify-center flex-1 sm:flex-initial"
             >
               <Plus className="w-3.5 h-3.5 mr-1.5" />
@@ -425,6 +703,14 @@ export function WaveformTrimmer({ onOpenSourceModal }: WaveformTrimmerProps) {
             </Button>
           </div>
         </div>
+
+        {/* Toast Notification inside Trimmer */}
+        {toastMsg && (
+          <div className="p-2 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 text-xs font-semibold flex items-center gap-2 animate-in fade-in duration-150">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+            <span>{toastMsg}</span>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

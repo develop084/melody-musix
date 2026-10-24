@@ -8,7 +8,13 @@ import { Music2, Sparkles, Layers, SlidersHorizontal } from 'lucide-react';
 
 export function StudioPage() {
   const [isSourceModalOpen, setIsSourceModalOpen] = useState(false);
+  const [sourceModalQuery, setSourceModalQuery] = useState('');
   const [isProjectsModalOpen, setIsProjectsModalOpen] = useState(false);
+
+  const handleOpenSourceModal = (query = '') => {
+    setSourceModalQuery(query);
+    setIsSourceModalOpen(true);
+  };
 
   return (
     <div className="space-y-3.5 sm:space-y-5">
@@ -27,12 +33,12 @@ export function StudioPage() {
 
       {/* Master Transport & Controls */}
       <TransportBar
-        onOpenSourceModal={() => setIsSourceModalOpen(true)}
+        onOpenSourceModal={() => handleOpenSourceModal('')}
         onOpenProjects={() => setIsProjectsModalOpen(true)}
       />
 
-      {/* Visual Waveform Snippet Trimmer */}
-      <WaveformTrimmer onOpenSourceModal={() => setIsSourceModalOpen(true)} />
+      {/* Visual Waveform Snippet Trimmer & Quick Sound Deck */}
+      <WaveformTrimmer onOpenSourceModal={handleOpenSourceModal} />
 
       {/* Multitrack Arrangement Timeline */}
       <TimelineEditor />
@@ -41,6 +47,7 @@ export function StudioPage() {
       <MediaSearchModal
         isOpen={isSourceModalOpen}
         onClose={() => setIsSourceModalOpen(false)}
+        initialQuery={sourceModalQuery}
       />
 
       <ProjectsModal

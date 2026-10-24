@@ -13,6 +13,24 @@ import {
   Magnet,
 } from 'lucide-react';
 
+function TimelinePlayhead({ durationMs, showHandle = false }: { durationMs: number; showHandle?: boolean }) {
+  const currentTimeMs = useStudioStore((s) => s.currentTimeMs);
+  const playheadPercent = Math.min(100, Math.max(0, (currentTimeMs / durationMs) * 100));
+
+  return (
+    <div
+      style={{ left: `${playheadPercent}%` }}
+      className={`absolute top-0 bottom-0 w-0.5 bg-red-500 pointer-events-none ${
+        showHandle ? 'z-30' : 'z-20'
+      }`}
+    >
+      {showHandle && (
+        <div className="w-3 h-3 bg-red-500 -ml-1.5 rotate-45 transform origin-center shadow-sm" />
+      )}
+    </div>
+  );
+}
+
 export function TimelineEditor() {
   const rulerRef = useRef<HTMLDivElement | null>(null);
 
@@ -20,7 +38,6 @@ export function TimelineEditor() {
     tracks,
     bpm,
     durationMs,
-    currentTimeMs,
     selectedTrackId,
     isPlaying,
     snapToGrid,
@@ -38,7 +55,6 @@ export function TimelineEditor() {
   } = useStudioStore();
 
   const totalDurationSec = durationMs / 1000;
-  const playheadPercent = Math.min(100, Math.max(0, (currentTimeMs / durationMs) * 100));
 
   // Snap to Grid calculations based on project BPM
   const beatMs = (60 / bpm) * 1000;
@@ -144,12 +160,7 @@ export function TimelineEditor() {
           ))}
 
           {/* Playhead Marker on Ruler */}
-          <div
-            style={{ left: `${playheadPercent}%` }}
-            className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-30 pointer-events-none transition-all duration-75"
-          >
-            <div className="w-3 h-3 bg-red-500 -ml-1.5 rotate-45 transform origin-center shadow-sm" />
-          </div>
+          <TimelinePlayhead durationMs={durationMs} showHandle />
         </div>
       </div>
 
@@ -246,10 +257,7 @@ export function TimelineEditor() {
                 className="flex-1 relative h-full min-h-[86px] sm:min-h-[82px] bg-slate-50/50 p-1.5 sm:p-2 overflow-hidden select-none cursor-pointer"
               >
                 {/* Continuous Playhead Line across this lane */}
-                <div
-                  style={{ left: `${playheadPercent}%` }}
-                  className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-20 pointer-events-none transition-all duration-75"
-                />
+                <TimelinePlayhead durationMs={durationMs} />
 
                 {/* Horizontal grid guide line */}
                 <div className="absolute inset-x-0 top-1/2 border-b border-dashed border-slate-200/60 pointer-events-none" />

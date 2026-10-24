@@ -44,6 +44,7 @@ interface StudioState {
   setSelectedTrackId: (trackId: string) => void;
 
   setSourceTrack: (track: MediaTrack, buffer: AudioBuffer) => void;
+  clearSourceTrack: () => void;
   setTrimRange: (startMs: number, endMs: number) => void;
   setTrimFadeIn: (ms: number) => void;
   setTrimFadeOut: (ms: number) => void;
@@ -51,6 +52,7 @@ interface StudioState {
   setIsSnippetPlaying: (playing: boolean) => void;
 
   addClipToSelectedTrack: (timelineStartMs?: number) => void;
+  addDirectSampleClip: (mediaTrack: MediaTrack, targetTrackId?: string) => Promise<void>;
   removeClip: (trackId: string, clipId: string) => void;
   updateClipPosition: (trackId: string, clipId: string, timelineStartMs: number) => void;
   updateClipVolume: (trackId: string, clipId: string, volume: number) => void;
@@ -194,6 +196,8 @@ export const useStudioStore = create<StudioState>((set, get) => ({
     });
   },
 
+  clearSourceTrack: () => set({ sourceTrackInfo: null, sourceAudioBuffer: null, isSnippetPlaying: false }),
+
   setTrimRange: (startMs, endMs) => set({ trimStartMs: Math.max(0, startMs), trimEndMs: Math.max(startMs + 200, endMs) }),
   setTrimFadeIn: (ms) => set({ trimFadeInMs: ms }),
   setTrimFadeOut: (ms) => set({ trimFadeOutMs: ms }),
@@ -246,6 +250,58 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       canUndo: true,
       canRedo: false,
     });
+  },
+
+  addDirectSampleClip: async (mediaTrack, targetTrackId) => {
+    const { tracks, selectedTrackId, durationMs, currentTimeMs, history } = get();
+    const destTrackId = targetTrackId || selectedTrackId;
+    const track = tracks.find((t) => t.id === destTrackId) || tracks[0];
+    if (!track) return;
+
+    set({ isProcessingAudio: true, processingStatus: `Adding "${mediaTrack.title}" to track...` });
+    try {
+      const buffer = await audioEngine.decodeAudioFromUrl(mediaTrack.url);
+      const clipDuration = Math.min(durationMs, Math.floor(buffer.duration * 1000));
+
+      // Calculate smart position: if scrubbed past 0, use currentTimeMs; otherwise append after last clip
+      let startAt = currentTimeMs > 0 ? currentTimeMs : 0;
+      if (currentTimeMs === 0 && track.clips.length > 0) {
+        const lastClip = track.clips[track.clips.length - 1];
+        startAt = Math.min(durationMs - 200, lastClip.timelineStartMs + lastClip.durationMs);
+      }
+
+      const newClip: AudioClip = {
+        id: `clip_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        sourceUrl: mediaTrack.url,
+        sourceTitle: mediaTrack.title,
+        startOffsetMs: 0,
+        durationMs: clipDuration,
+        timelineStartMs: startAt,
+        fadeInMs: 100,
+        fadeOutMs: 100,
+        volume: 1.0,
+      };
+
+      const updatedTracks = tracks.map((t) => {
+        if (t.id === track.id) {
+          return { ...t, clips: [...t.clips, newClip] };
+        }
+        return t;
+      });
+
+      const currentSnapshot = cloneTracks(tracks);
+      set({
+        tracks: updatedTracks,
+        history: [currentSnapshot, ...history].slice(0, 30),
+        future: [],
+        canUndo: true,
+        canRedo: false,
+      });
+    } catch (err) {
+      console.warn('Failed to add direct clip:', err);
+    } finally {
+      set({ isProcessingAudio: false, processingStatus: '' });
+    }
   },
 
   removeClip: (trackId, clipId) => {
