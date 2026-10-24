@@ -4,11 +4,12 @@ import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import {
   Volume2,
-  VolumeX,
   Plus,
   Trash2,
   X,
   GripHorizontal,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 
 export function TimelineEditor() {
@@ -34,17 +35,17 @@ export function TimelineEditor() {
   const totalDurationSec = durationMs / 1000;
   const playheadPercent = Math.min(100, Math.max(0, (currentTimeMs / durationMs) * 100));
 
-  const handleRulerClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleScrub = (clientX: number) => {
     if (!rulerRef.current) return;
     const rect = rulerRef.current.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
+    const clickX = clientX - rect.left;
     const ratio = Math.max(0, Math.min(1, clickX / rect.width));
     setCurrentTimeMs(ratio * durationMs);
   };
 
-  // Generate tick marks for time ruler
+  // Generate tick marks for time ruler (adapts nicely on small screens)
   const ticks = [];
-  const stepSec = totalDurationSec <= 30 ? 2 : 5;
+  const stepSec = totalDurationSec <= 30 ? 5 : 10;
   for (let s = 0; s <= totalDurationSec; s += stepSec) {
     const pct = (s / totalDurationSec) * 100;
     const mins = Math.floor(s / 60);
@@ -52,7 +53,7 @@ export function TimelineEditor() {
     ticks.push({ s, pct, label: `${mins}:${secs}` });
   }
 
-  // Clip drag handler
+  // Clip drag handler for desktop mouse
   const handleDragStart = (e: React.DragEvent, clipId: string, trackId: string, startMs: number) => {
     e.dataTransfer.setData('text/plain', JSON.stringify({ clipId, trackId, startMs, initialClientX: e.clientX }));
   };
@@ -71,19 +72,35 @@ export function TimelineEditor() {
     } catch {}
   };
 
+  // Nudge clip position by delta (for mobile and touch screen users)
+  const nudgeClip = (e: React.MouseEvent | React.TouchEvent, trackId: string, clipId: string, deltaMs: number) => {
+    e.stopPropagation();
+    const track = tracks.find((t) => t.id === trackId);
+    if (!track) return;
+    const clip = track.clips.find((c) => c.id === clipId);
+    if (!clip) return;
+    const nextStart = Math.max(0, Math.min(durationMs - 200, clip.timelineStartMs + deltaMs));
+    updateClipPosition(trackId, clipId, nextStart);
+  };
+
   return (
     <Card className="border-slate-200 shadow-sm overflow-hidden bg-white">
       {/* Time Ruler & Master Playhead */}
       <div className="flex border-b border-slate-200 bg-slate-50 select-none">
-        <div className="w-56 p-2.5 border-r border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
-          <span>Tracks ({tracks.length})</span>
-          <span className="text-[10px] text-slate-400 font-normal">Click ruler to scrub</span>
+        {/* Left Track Title Column */}
+        <div className="w-28 sm:w-44 md:w-56 p-2 sm:p-2.5 border-r border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between flex-shrink-0">
+          <span className="truncate">Tracks ({tracks.length})</span>
+          <span className="text-[10px] text-slate-400 font-normal hidden sm:inline">Scrub</span>
         </div>
 
+        {/* Right Ruler Area */}
         <div
           ref={rulerRef}
-          onClick={handleRulerClick}
-          className="flex-1 relative h-9 cursor-pointer overflow-hidden"
+          onClick={(e) => handleScrub(e.clientX)}
+          onTouchStart={(e) => {
+            if (e.touches[0]) handleScrub(e.touches[0].clientX);
+          }}
+          className="flex-1 relative h-9 cursor-pointer overflow-hidden touch-none"
         >
           {ticks.map((t) => (
             <div
@@ -91,7 +108,7 @@ export function TimelineEditor() {
               style={{ left: `${t.pct}%` }}
               className="absolute top-0 bottom-0 flex flex-col justify-between border-l border-slate-200/80 pointer-events-none pl-1"
             >
-              <span className="text-[10px] font-mono text-slate-400 font-semibold">{t.label}</span>
+              <span className="text-[9px] sm:text-[10px] font-mono text-slate-400 font-semibold">{t.label}</span>
               <div className="h-1.5 w-0.5 bg-slate-300" />
             </div>
           ))}
@@ -108,12 +125,6 @@ export function TimelineEditor() {
 
       {/* Multitrack Lanes Workspace */}
       <div className="divide-y divide-slate-100 relative">
-        {/* Continuous Playhead Line across all tracks */}
-        <div
-          style={{ left: `calc(14rem + (100% - 14rem) * ${playheadPercent / 100})` }}
-          className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-20 pointer-events-none transition-all duration-75"
-        />
-
         {tracks.map((track) => {
           const isSelected = track.id === selectedTrackId;
 
@@ -121,22 +132,24 @@ export function TimelineEditor() {
             <div
               key={track.id}
               onClick={() => setSelectedTrackId(track.id)}
-              className={`flex min-h-[82px] transition-colors ${
+              className={`flex min-h-[86px] sm:min-h-[82px] transition-colors ${
                 isSelected ? 'bg-blue-50/20' : 'hover:bg-slate-50/40'
               }`}
             >
-              {/* Left Track Controls Header */}
-              <div className="w-56 p-3 border-r border-slate-200 flex flex-col justify-between bg-white z-10 flex-shrink-0">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-900 truncate pr-1">{track.name}</span>
-                  <div className="flex items-center gap-1">
+              {/* Left Track Controls Header (Mobile Compact) */}
+              <div className="w-28 sm:w-44 md:w-56 p-2 sm:p-2.5 border-r border-slate-200 flex flex-col justify-between bg-white z-10 flex-shrink-0">
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-[11px] sm:text-xs font-bold text-slate-900 truncate">
+                    {track.name}
+                  </span>
+                  <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         toggleTrackMute(track.id);
                       }}
-                      className={`px-1.5 py-0.5 text-[10px] font-bold rounded ${
+                      className={`px-1 sm:px-1.5 py-0.5 text-[9px] sm:text-[10px] font-bold rounded ${
                         track.muted ? 'bg-red-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                       }`}
                       title="Mute Track"
@@ -149,7 +162,7 @@ export function TimelineEditor() {
                         e.stopPropagation();
                         toggleTrackSolo(track.id);
                       }}
-                      className={`px-1.5 py-0.5 text-[10px] font-bold rounded ${
+                      className={`px-1 sm:px-1.5 py-0.5 text-[9px] sm:text-[10px] font-bold rounded ${
                         track.solo ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                       }`}
                       title="Solo Track"
@@ -173,8 +186,8 @@ export function TimelineEditor() {
                 </div>
 
                 {/* Track Volume Gain Slider */}
-                <div className="flex items-center gap-2 mt-2">
-                  <Volume2 className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                <div className="flex items-center gap-1 sm:gap-2 mt-1.5">
+                  <Volume2 className="w-3 h-3 text-slate-400 flex-shrink-0" />
                   <input
                     type="range"
                     min={0}
@@ -182,48 +195,60 @@ export function TimelineEditor() {
                     step={0.05}
                     value={track.volume}
                     onChange={(e) => setTrackVolume(track.id, Number(e.target.value))}
-                    className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                    className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                     title={`Volume: ${Math.round(track.volume * 100)}%`}
                   />
-                  <span className="text-[10px] font-mono text-slate-400 w-7 text-right">
+                  <span className="text-[9px] sm:text-[10px] font-mono text-slate-400 w-5 sm:w-7 text-right">
                     {Math.round(track.volume * 100)}%
                   </span>
                 </div>
               </div>
 
-              {/* Right Track Lane & Audio Clip Blocks */}
+              {/* Right Track Lane & Audio Clip Blocks with Pure Flex Playhead */}
               <div
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => handleLaneDrop(e, track.id)}
-                className="flex-1 relative h-full min-h-[82px] bg-slate-50/50 p-2 overflow-hidden select-none"
+                onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const clickRatio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+                  setCurrentTimeMs(clickRatio * durationMs);
+                }}
+                className="flex-1 relative h-full min-h-[86px] sm:min-h-[82px] bg-slate-50/50 p-1.5 sm:p-2 overflow-hidden select-none cursor-pointer"
               >
+                {/* Continuous Playhead Line across this lane */}
+                <div
+                  style={{ left: `${playheadPercent}%` }}
+                  className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-20 pointer-events-none transition-all duration-75"
+                />
+
                 {/* Horizontal grid guide line */}
                 <div className="absolute inset-x-0 top-1/2 border-b border-dashed border-slate-200/60 pointer-events-none" />
 
                 {track.clips.length === 0 && (
-                  <div className="absolute inset-0 flex items-center justify-center text-[11px] text-slate-300 pointer-events-none">
-                    Drop snippets here or select track & click "Add to Timeline"
+                  <div className="absolute inset-0 flex items-center justify-center text-[10px] sm:text-[11px] text-slate-300 pointer-events-none px-2 text-center">
+                    Tap to position or select track & click "Add to Timeline"
                   </div>
                 )}
 
                 {track.clips.map((clip) => {
                   const leftPct = (clip.timelineStartMs / durationMs) * 100;
-                  const widthPct = Math.max(3, (clip.durationMs / durationMs) * 100);
+                  const widthPct = Math.max(5, (clip.durationMs / durationMs) * 100);
 
                   return (
                     <div
                       key={clip.id}
                       draggable
                       onDragStart={(e) => handleDragStart(e, clip.id, track.id, clip.timelineStartMs)}
+                      onClick={(e) => e.stopPropagation()}
                       style={{
                         left: `${leftPct}%`,
                         width: `${widthPct}%`,
                       }}
-                      className="absolute top-2.5 bottom-2.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm p-1.5 flex flex-col justify-between cursor-move group hover:brightness-105 transition-all border border-blue-400/30"
+                      className="absolute top-2 bottom-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm p-1 sm:p-1.5 flex flex-col justify-between cursor-move group hover:brightness-105 transition-all border border-blue-400/30 z-10"
                       title={`${clip.sourceTitle} (${(clip.durationMs / 1000).toFixed(1)}s)`}
                     >
                       <div className="flex items-center justify-between gap-1 overflow-hidden">
-                        <span className="text-[11px] font-bold truncate leading-tight flex-1">
+                        <span className="text-[10px] sm:text-[11px] font-bold truncate leading-tight flex-1">
                           {clip.sourceTitle}
                         </span>
                         <button
@@ -232,16 +257,35 @@ export function TimelineEditor() {
                             e.stopPropagation();
                             removeClip(track.id, clip.id);
                           }}
-                          className="opacity-0 group-hover:opacity-100 hover:bg-black/20 rounded p-0.5 text-white transition-opacity flex-shrink-0"
+                          className="hover:bg-black/30 rounded p-0.5 text-white flex-shrink-0"
                           title="Delete Clip"
                         >
                           <X className="w-3 h-3" />
                         </button>
                       </div>
 
-                      <div className="flex items-center justify-between text-[9px] text-blue-100 font-mono">
+                      {/* Touch Nudge & Duration Bar (Works on Phones & Desktops) */}
+                      <div className="flex items-center justify-between text-[9px] text-blue-100 font-mono mt-0.5">
+                        <div className="flex items-center gap-0.5">
+                          <button
+                            type="button"
+                            onClick={(e) => nudgeClip(e, track.id, clip.id, -1000)}
+                            className="bg-black/30 hover:bg-black/50 rounded px-1 py-0.5 active:scale-95"
+                            title="Nudge 1s Left"
+                          >
+                            <ChevronLeft className="w-2.5 h-2.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => nudgeClip(e, track.id, clip.id, 1000)}
+                            className="bg-black/30 hover:bg-black/50 rounded px-1 py-0.5 active:scale-95"
+                            title="Nudge 1s Right"
+                          >
+                            <ChevronRight className="w-2.5 h-2.5" />
+                          </button>
+                        </div>
+
                         <span>{(clip.durationMs / 1000).toFixed(1)}s</span>
-                        <GripHorizontal className="w-3 h-3 opacity-40 group-hover:opacity-80" />
                       </div>
                     </div>
                   );
@@ -253,13 +297,13 @@ export function TimelineEditor() {
       </div>
 
       {/* Add Track Action Bar */}
-      <div className="p-2.5 bg-slate-50/75 border-t border-slate-200 flex justify-between items-center text-xs">
-        <Button variant="outline" size="sm" onClick={() => addTrack()} className="text-xs">
+      <div className="p-2 sm:p-2.5 bg-slate-50/75 border-t border-slate-200 flex justify-between items-center text-xs">
+        <Button variant="outline" size="sm" onClick={() => addTrack()} className="text-xs h-8">
           <Plus className="w-3.5 h-3.5 mr-1" />
           Add Audio Track
         </Button>
-        <span className="text-slate-400 text-[11px]">
-          Arrangement Timeline • Non-destructive Web Audio Mixing
+        <span className="text-slate-400 text-[10px] sm:text-[11px] truncate ml-2">
+          Arrangement Timeline • Non-destructive Mixing
         </span>
       </div>
     </Card>

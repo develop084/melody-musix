@@ -24,6 +24,19 @@ interface StudioState {
   isPlaying: boolean;
   currentTimeMs: number;
 
+  // Undo / Redo history
+  history: Track[][];
+  future: Track[][];
+  canUndo: boolean;
+  canRedo: boolean;
+  undo: () => void;
+  redo: () => void;
+
+  // Processing state for feedback
+  isProcessingAudio: boolean;
+  processingStatus: string;
+  setIsProcessingAudio: (loading: boolean, status?: string) => void;
+
   // Actions
   setProjectTitle: (title: string) => void;
   setBpm: (bpm: number) => void;
@@ -84,6 +97,8 @@ const DEFAULT_TRACKS: Track[] = [
   },
 ];
 
+const cloneTracks = (tracks: Track[]): Track[] => JSON.parse(JSON.stringify(tracks));
+
 let playbackRafId: number | null = null;
 let playbackStartTimestamp = 0;
 let playbackInitialOffsetMs = 0;
@@ -95,6 +110,45 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   durationMs: 30000,
   tracks: DEFAULT_TRACKS,
   selectedTrackId: 'trk_01',
+
+  history: [],
+  future: [],
+  canUndo: false,
+  canRedo: false,
+
+  isProcessingAudio: false,
+  processingStatus: '',
+  setIsProcessingAudio: (loading, status = '') => set({ isProcessingAudio: loading, processingStatus: status }),
+
+  undo: () => {
+    const { history, future, tracks } = get();
+    if (history.length === 0) return;
+    const previous = history[0];
+    const newHistory = history.slice(1);
+    const current = cloneTracks(tracks);
+    set({
+      tracks: previous,
+      history: newHistory,
+      future: [current, ...future].slice(0, 30),
+      canUndo: newHistory.length > 0,
+      canRedo: true,
+    });
+  },
+
+  redo: () => {
+    const { history, future, tracks } = get();
+    if (future.length === 0) return;
+    const next = future[0];
+    const newFuture = future.slice(1);
+    const current = cloneTracks(tracks);
+    set({
+      tracks: next,
+      history: [current, ...history].slice(0, 30),
+      future: newFuture,
+      canUndo: true,
+      canRedo: newFuture.length > 0,
+    });
+  },
 
   sourceTrackInfo: null,
   sourceAudioBuffer: null,
@@ -133,6 +187,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   addClipToSelectedTrack: (timelineStartMs) => {
     const {
       tracks,
+      history,
       selectedTrackId,
       sourceTrackInfo,
       trimStartMs,
@@ -167,22 +222,36 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       return track;
     });
 
-    set({ tracks: updatedTracks });
+    const currentSnapshot = cloneTracks(tracks);
+    set({
+      tracks: updatedTracks,
+      history: [currentSnapshot, ...history].slice(0, 30),
+      future: [],
+      canUndo: true,
+      canRedo: false,
+    });
   },
 
   removeClip: (trackId, clipId) => {
-    const { tracks } = get();
+    const { tracks, history } = get();
     const updated = tracks.map((track) => {
       if (track.id === trackId) {
         return { ...track, clips: track.clips.filter((c) => c.id !== clipId) };
       }
       return track;
     });
-    set({ tracks: updated });
+    const currentSnapshot = cloneTracks(tracks);
+    set({
+      tracks: updated,
+      history: [currentSnapshot, ...history].slice(0, 30),
+      future: [],
+      canUndo: true,
+      canRedo: false,
+    });
   },
 
   updateClipPosition: (trackId, clipId, timelineStartMs) => {
-    const { tracks } = get();
+    const { tracks, history } = get();
     const updated = tracks.map((track) => {
       if (track.id === trackId) {
         return {
@@ -192,11 +261,18 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       }
       return track;
     });
-    set({ tracks: updated });
+    const currentSnapshot = cloneTracks(tracks);
+    set({
+      tracks: updated,
+      history: [currentSnapshot, ...history].slice(0, 30),
+      future: [],
+      canUndo: true,
+      canRedo: false,
+    });
   },
 
   updateClipVolume: (trackId, clipId, volume) => {
-    const { tracks } = get();
+    const { tracks, history } = get();
     const updated = tracks.map((track) => {
       if (track.id === trackId) {
         return {
@@ -206,11 +282,18 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       }
       return track;
     });
-    set({ tracks: updated });
+    const currentSnapshot = cloneTracks(tracks);
+    set({
+      tracks: updated,
+      history: [currentSnapshot, ...history].slice(0, 30),
+      future: [],
+      canUndo: true,
+      canRedo: false,
+    });
   },
 
   addTrack: (name) => {
-    const { tracks } = get();
+    const { tracks, history } = get();
     const newTrack: Track = {
       id: `trk_${Date.now()}`,
       name: name || `Track ${tracks.length + 1}`,
@@ -219,16 +302,29 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       solo: false,
       clips: [],
     };
-    set({ tracks: [...tracks, newTrack], selectedTrackId: newTrack.id });
+    const currentSnapshot = cloneTracks(tracks);
+    set({
+      tracks: [...tracks, newTrack],
+      selectedTrackId: newTrack.id,
+      history: [currentSnapshot, ...history].slice(0, 30),
+      future: [],
+      canUndo: true,
+      canRedo: false,
+    });
   },
 
   removeTrack: (trackId) => {
-    const { tracks } = get();
+    const { tracks, history } = get();
     if (tracks.length <= 1) return; // Keep at least 1 track
     const updated = tracks.filter((t) => t.id !== trackId);
+    const currentSnapshot = cloneTracks(tracks);
     set({
       tracks: updated,
       selectedTrackId: updated[0].id,
+      history: [currentSnapshot, ...history].slice(0, 30),
+      future: [],
+      canUndo: true,
+      canRedo: false,
     });
   },
 

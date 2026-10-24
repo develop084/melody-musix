@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { mediaApi } from '../../api/media';
 import { MediaTrack } from '../../types';
 import { audioEngine } from '../../audio/audioEngine';
@@ -14,8 +14,8 @@ import {
   Square,
   Sparkles,
   Loader2,
-  ExternalLink,
   PlusCircle,
+  Zap,
 } from 'lucide-react';
 
 interface MediaSearchModalProps {
@@ -33,7 +33,20 @@ export function MediaSearchModal({ isOpen, onClose }: MediaSearchModalProps) {
   const [loadingAudioId, setLoadingAudioId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
+
   const setSourceTrack = useStudioStore((state) => state.setSourceTrack);
+  const setIsProcessingAudio = useStudioStore((state) => state.setIsProcessingAudio);
+
+  // Stop preview audio helper
+  const stopAudioPreview = () => {
+    if (previewAudioRef.current) {
+      previewAudioRef.current.pause();
+      previewAudioRef.current.src = '';
+      previewAudioRef.current = null;
+    }
+    setPreviewingId(null);
+  };
 
   // Load sample tracks on initial mount
   useEffect(() => {
@@ -44,6 +57,13 @@ export function MediaSearchModal({ isOpen, onClose }: MediaSearchModalProps) {
         .catch((err) => console.warn('Failed to load samples:', err));
     }
   }, [isOpen, samples.length]);
+
+  // Clean up preview audio on unmount or modal close
+  useEffect(() => {
+    return () => {
+      stopAudioPreview();
+    };
+  }, []);
 
   const handleSearch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -61,40 +81,49 @@ export function MediaSearchModal({ isOpen, onClose }: MediaSearchModalProps) {
     }
   };
 
-  const handlePreview = async (track: MediaTrack) => {
+  // Instant HTML5 streaming preview without full buffer decode delays
+  const handlePreview = (track: MediaTrack) => {
     if (previewingId === track.id) {
-      audioEngine.stopSnippet();
-      setPreviewingId(null);
+      stopAudioPreview();
       return;
     }
 
-    setLoadingAudioId(track.id);
+    stopAudioPreview();
+    setPreviewingId(track.id);
+
     try {
-      const buffer = await audioEngine.decodeAudioFromUrl(track.url);
-      setLoadingAudioId(null);
-      setPreviewingId(track.id);
-      audioEngine.playSnippet(buffer, 0, Math.min(10, buffer.duration), 1.0, () => {
-        setPreviewingId(null);
+      const audio = new Audio(track.url);
+      previewAudioRef.current = audio;
+
+      audio.play().catch((playErr) => {
+        console.warn('Audio preview playback error:', playErr);
+        stopAudioPreview();
       });
+
+      audio.onended = () => {
+        stopAudioPreview();
+      };
     } catch (err) {
-      setLoadingAudioId(null);
+      stopAudioPreview();
       setError(`Failed to preview audio for "${track.title}"`);
     }
   };
 
   const handleSelectTrack = async (track: MediaTrack) => {
-    audioEngine.stopSnippet();
-    setPreviewingId(null);
+    stopAudioPreview();
     setLoadingAudioId(track.id);
+    setIsProcessingAudio(true, `Importing "${track.title}" into studio...`);
 
     try {
       const buffer = await audioEngine.decodeAudioFromUrl(track.url);
       setSourceTrack(track, buffer);
       setLoadingAudioId(null);
+      setIsProcessingAudio(false);
       onClose();
-    } catch (err) {
+    } catch (err: any) {
       setLoadingAudioId(null);
-      setError(`Failed to load and decode audio for "${track.title}"`);
+      setIsProcessingAudio(false);
+      setError(`Failed to decode audio: ${err.message || 'Stream error'}`);
     }
   };
 
@@ -102,7 +131,10 @@ export function MediaSearchModal({ isOpen, onClose }: MediaSearchModalProps) {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    stopAudioPreview();
     setError(null);
+    setIsProcessingAudio(true, `Decoding local file "${file.name}"...`);
+
     try {
       const { buffer, url } = await audioEngine.decodeAudioFromFile(file);
       const customTrack: MediaTrack = {
@@ -115,8 +147,10 @@ export function MediaSearchModal({ isOpen, onClose }: MediaSearchModalProps) {
         author: 'Local File',
       };
       setSourceTrack(customTrack, buffer);
+      setIsProcessingAudio(false);
       onClose();
     } catch (err) {
+      setIsProcessingAudio(false);
       setError('Failed to decode local audio file. Ensure it is a valid MP3, WAV, or AAC file.');
     }
   };
@@ -125,21 +159,20 @@ export function MediaSearchModal({ isOpen, onClose }: MediaSearchModalProps) {
     <Modal
       isOpen={isOpen}
       onClose={() => {
-        audioEngine.stopSnippet();
-        setPreviewingId(null);
+        stopAudioPreview();
         onClose();
       }}
       title="Add Song or Sample to Studio"
-      description="Search YouTube, pick built-in melody loops, or upload your own audio file"
+      description="Search YouTube, pick instant built-in loops, or upload your own audio file"
       className="max-w-2xl"
     >
       <div className="space-y-4">
-        {/* Navigation Tabs */}
-        <div className="flex border-b border-slate-200 gap-1 pb-1">
+        {/* Navigation Tabs (Mobile Responsive & Scrollable) */}
+        <div className="flex border-b border-slate-200 gap-1 pb-1 overflow-x-auto no-scrollbar">
           <button
             type="button"
             onClick={() => setTab('youtube')}
-            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-colors ${
+            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-colors flex-shrink-0 ${
               tab === 'youtube'
                 ? 'bg-blue-50 text-blue-700'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -151,19 +184,20 @@ export function MediaSearchModal({ isOpen, onClose }: MediaSearchModalProps) {
           <button
             type="button"
             onClick={() => setTab('samples')}
-            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-colors ${
+            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-colors flex-shrink-0 ${
               tab === 'samples'
                 ? 'bg-blue-50 text-blue-700'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
             }`}
           >
             <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-            Built-in Samples & Loops
+            Built-in Loops
+            <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full font-bold">Instant</span>
           </button>
           <button
             type="button"
             onClick={() => setTab('upload')}
-            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-colors ${
+            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-colors flex-shrink-0 ${
               tab === 'upload'
                 ? 'bg-blue-50 text-blue-700'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'

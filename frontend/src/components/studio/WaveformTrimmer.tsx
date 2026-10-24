@@ -138,42 +138,136 @@ export function WaveformTrimmer({ onOpenSourceModal }: WaveformTrimmerProps) {
 
   const snippetDurationSec = ((trimEndMs - trimStartMs) / 1000).toFixed(2);
 
+  const handleCanvasInteraction = (clientX: number) => {
+    const canvas = canvasRef.current;
+    if (!canvas || !sourceAudioBuffer) return;
+    const rect = canvas.getBoundingClientRect();
+    const clickRatio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const targetMs = Math.round(clickRatio * totalDurationMs);
+    const distToStart = Math.abs(targetMs - trimStartMs);
+    const distToEnd = Math.abs(targetMs - trimEndMs);
+
+    if (distToStart < distToEnd) {
+      setTrimRange(Math.min(targetMs, trimEndMs - 200), trimEndMs);
+    } else {
+      setTrimRange(trimStartMs, Math.max(targetMs, trimStartMs + 200));
+    }
+  };
+
+  const nudgeStart = (deltaMs: number) => {
+    const nextStart = Math.max(0, Math.min(trimEndMs - 200, trimStartMs + deltaMs));
+    setTrimRange(nextStart, trimEndMs);
+  };
+
+  const nudgeEnd = (deltaMs: number) => {
+    const nextEnd = Math.max(trimStartMs + 200, Math.min(totalDurationMs, trimEndMs + deltaMs));
+    setTrimRange(trimStartMs, nextEnd);
+  };
+
+  const setPreset = (durationSec: number) => {
+    const durMs = durationSec * 1000;
+    const end = Math.min(totalDurationMs, trimStartMs + durMs);
+    setTrimRange(trimStartMs, end);
+  };
+
   return (
-    <Card className="border-slate-200 shadow-sm">
-      <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
+    <Card className="border-slate-200 shadow-sm p-3 sm:p-4">
+      <CardHeader className="p-0 pb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 space-y-0">
         <div>
           <CardTitle className="text-sm font-bold flex items-center gap-2">
-            <Scissors className="w-4 h-4 text-blue-600" />
-            Snippet Trimmer: <span className="text-blue-700">{sourceTrackInfo.title}</span>
+            <Scissors className="w-4 h-4 text-blue-600 flex-shrink-0" />
+            <span className="truncate">Snippet Trimmer: <span className="text-blue-700">{sourceTrackInfo.title}</span></span>
           </CardTitle>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Trim in/out markers to extract riffs, chords, or vocal hooks for your medley
+          <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
+            Tap waveform or adjust sliders to extract riffs, chords, or hooks
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-mono font-bold bg-blue-50 text-blue-700 px-2 py-1 rounded-md border border-blue-200">
-            Length: {snippetDurationSec}s
+        <div className="flex items-center gap-1.5 self-start sm:self-auto">
+          <span className="text-xs font-mono font-bold bg-blue-50 text-blue-700 px-2.5 py-1 rounded-md border border-blue-200">
+            Snippet: {snippetDurationSec}s
           </span>
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4">
-        {/* Interactive Waveform Canvas */}
+      <CardContent className="p-0 space-y-3.5">
+        {/* Interactive Waveform Canvas with Touch & Click */}
         <div className="relative rounded-xl overflow-hidden bg-slate-900/5 border border-slate-200 p-1">
           <canvas
             ref={canvasRef}
             width={800}
             height={90}
-            className="w-full h-[90px] block rounded-lg cursor-pointer"
+            onClick={(e) => handleCanvasInteraction(e.clientX)}
+            onTouchStart={(e) => {
+              if (e.touches[0]) handleCanvasInteraction(e.touches[0].clientX);
+            }}
+            className="w-full h-[85px] sm:h-[95px] block rounded-lg cursor-pointer touch-none"
+            title="Tap on waveform to place start/end marker"
           />
+          <div className="flex justify-between px-2 pt-1 text-[9px] text-slate-400 font-mono">
+            <span>0:00</span>
+            <span className="text-blue-600 font-semibold">Tap waveform to position markers</span>
+            <span>{(totalDurationMs / 1000).toFixed(1)}s</span>
+          </div>
         </div>
 
-        {/* Trim Sliders */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
+        {/* Quick Duration Presets for 1-Tap Mobile Selection */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[11px] font-semibold text-slate-500 mr-1">Quick Presets:</span>
+          <button
+            type="button"
+            onClick={() => setPreset(2)}
+            className="px-2 py-0.5 text-xs bg-slate-100 hover:bg-blue-50 hover:text-blue-600 rounded-md border border-slate-200 font-medium transition-colors"
+          >
+            2s Hook
+          </button>
+          <button
+            type="button"
+            onClick={() => setPreset(4)}
+            className="px-2 py-0.5 text-xs bg-slate-100 hover:bg-blue-50 hover:text-blue-600 rounded-md border border-slate-200 font-medium transition-colors"
+          >
+            4s Riff
+          </button>
+          <button
+            type="button"
+            onClick={() => setPreset(8)}
+            className="px-2 py-0.5 text-xs bg-slate-100 hover:bg-blue-50 hover:text-blue-600 rounded-md border border-slate-200 font-medium transition-colors"
+          >
+            8s Loop
+          </button>
+          <button
+            type="button"
+            onClick={() => setTrimRange(0, totalDurationMs)}
+            className="px-2 py-0.5 text-xs bg-slate-100 hover:bg-blue-50 hover:text-blue-600 rounded-md border border-slate-200 font-medium transition-colors"
+          >
+            Full Track
+          </button>
+        </div>
+
+        {/* Trim Sliders + Touch-Friendly Nudge Buttons */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-slate-50 p-2.5 sm:p-3 rounded-xl border border-slate-100">
+          {/* Start Marker */}
           <div>
-            <div className="flex justify-between text-xs font-semibold text-slate-700 mb-1">
+            <div className="flex justify-between items-center text-xs font-semibold text-slate-700 mb-1">
               <span>Start In-Point</span>
-              <span className="font-mono text-blue-600">{(trimStartMs / 1000).toFixed(2)}s</span>
+              <div className="flex items-center gap-1">
+                <span className="font-mono text-blue-600 mr-1.5">{(trimStartMs / 1000).toFixed(2)}s</span>
+                <button
+                  type="button"
+                  onClick={() => nudgeStart(-500)}
+                  className="px-1.5 py-0.5 text-[10px] bg-white border border-slate-300 rounded hover:bg-slate-100"
+                  title="Nudge 0.5s left"
+                >
+                  -0.5s
+                </button>
+                <button
+                  type="button"
+                  onClick={() => nudgeStart(500)}
+                  className="px-1.5 py-0.5 text-[10px] bg-white border border-slate-300 rounded hover:bg-slate-100"
+                  title="Nudge 0.5s right"
+                >
+                  +0.5s
+                </button>
+              </div>
             </div>
             <input
               type="range"
@@ -182,14 +276,33 @@ export function WaveformTrimmer({ onOpenSourceModal }: WaveformTrimmerProps) {
               step={50}
               value={trimStartMs}
               onChange={(e) => setTrimRange(Number(e.target.value), trimEndMs)}
-              className="w-full accent-blue-600"
+              className="w-full accent-blue-600 h-2 bg-slate-200 rounded-lg cursor-pointer"
             />
           </div>
 
+          {/* End Marker */}
           <div>
-            <div className="flex justify-between text-xs font-semibold text-slate-700 mb-1">
+            <div className="flex justify-between items-center text-xs font-semibold text-slate-700 mb-1">
               <span>End Out-Point</span>
-              <span className="font-mono text-blue-600">{(trimEndMs / 1000).toFixed(2)}s</span>
+              <div className="flex items-center gap-1">
+                <span className="font-mono text-blue-600 mr-1.5">{(trimEndMs / 1000).toFixed(2)}s</span>
+                <button
+                  type="button"
+                  onClick={() => nudgeEnd(-500)}
+                  className="px-1.5 py-0.5 text-[10px] bg-white border border-slate-300 rounded hover:bg-slate-100"
+                  title="Nudge 0.5s left"
+                >
+                  -0.5s
+                </button>
+                <button
+                  type="button"
+                  onClick={() => nudgeEnd(500)}
+                  className="px-1.5 py-0.5 text-[10px] bg-white border border-slate-300 rounded hover:bg-slate-100"
+                  title="Nudge 0.5s right"
+                >
+                  +0.5s
+                </button>
+              </div>
             </div>
             <input
               type="range"
@@ -198,30 +311,35 @@ export function WaveformTrimmer({ onOpenSourceModal }: WaveformTrimmerProps) {
               step={50}
               value={trimEndMs}
               onChange={(e) => setTrimRange(trimStartMs, Number(e.target.value))}
-              className="w-full accent-blue-600"
+              className="w-full accent-blue-600 h-2 bg-slate-200 rounded-lg cursor-pointer"
             />
           </div>
         </div>
 
-        {/* Snippet Controls & Add to Timeline */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-          <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" onClick={handlePlaySnippet} className="text-xs">
+        {/* Snippet Controls & Add to Timeline (Touch-Friendly Responsive Layout) */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-1 border-t border-slate-100">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handlePlaySnippet}
+              className="text-xs h-9 px-3"
+            >
               {isSnippetPlaying ? (
                 <>
-                  <Square className="w-3.5 h-3.5 mr-1 text-red-600 fill-current" />
-                  Stop Snippet
+                  <Square className="w-3.5 h-3.5 mr-1.5 text-red-600 fill-current" />
+                  Stop Preview
                 </>
               ) : (
                 <>
-                  <Play className="w-3.5 h-3.5 mr-1 fill-current" />
-                  Play Snippet
+                  <Play className="w-3.5 h-3.5 mr-1.5 fill-current" />
+                  Preview Snippet
                 </>
               )}
             </Button>
 
             {/* Crossfade Controls */}
-            <div className="flex items-center gap-2 text-xs text-slate-600">
+            <div className="flex items-center gap-1.5 text-xs text-slate-600 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200">
               <span className="text-[11px] text-slate-500 font-medium">Fade:</span>
               <input
                 type="number"
@@ -230,7 +348,7 @@ export function WaveformTrimmer({ onOpenSourceModal }: WaveformTrimmerProps) {
                 step={50}
                 value={trimFadeInMs}
                 onChange={(e) => setTrimFadeIn(Number(e.target.value))}
-                className="w-14 px-1.5 py-1 text-xs border border-slate-200 rounded text-center"
+                className="w-12 px-1 py-0.5 text-xs border border-slate-200 rounded text-center bg-white"
                 title="Fade-In duration in milliseconds"
               />
               <span className="text-slate-400">ms</span>
@@ -238,11 +356,11 @@ export function WaveformTrimmer({ onOpenSourceModal }: WaveformTrimmerProps) {
           </div>
 
           {/* Target Track & Insert Button */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <select
               value={selectedTrackId}
               onChange={(e) => setSelectedTrackId(e.target.value)}
-              className="h-8 px-2.5 text-xs font-medium border border-slate-300 rounded-lg bg-white"
+              className="h-9 px-2.5 text-xs font-semibold border border-slate-300 rounded-lg bg-white flex-1 sm:flex-initial"
             >
               {tracks.map((t) => (
                 <option key={t.id} value={t.id}>
@@ -254,10 +372,10 @@ export function WaveformTrimmer({ onOpenSourceModal }: WaveformTrimmerProps) {
             <Button
               size="sm"
               onClick={() => addClipToSelectedTrack()}
-              className="text-xs shadow-md shadow-blue-500/20"
+              className="text-xs h-9 px-3.5 bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-500/20 text-white font-semibold flex items-center justify-center flex-1 sm:flex-initial"
             >
               <Plus className="w-3.5 h-3.5 mr-1.5" />
-              Add Snippet to Timeline
+              Add to Timeline
             </Button>
           </div>
         </div>

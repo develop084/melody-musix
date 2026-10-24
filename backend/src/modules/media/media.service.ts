@@ -6,6 +6,17 @@ import { SAMPLE_TRACKS } from './sampleAudio';
 import { NotFoundError } from '../../utils/errors';
 
 const ytdlClient = new Ytdl();
+const infoCache = new Map<string, { info: any; timestamp: number }>();
+
+async function getCachedInfo(id: string): Promise<any> {
+  const cached = infoCache.get(id);
+  if (cached && Date.now() - cached.timestamp < 1000 * 60 * 30) {
+    return cached.info;
+  }
+  const info = await ytdlClient.getInfo(id);
+  infoCache.set(id, { info, timestamp: Date.now() });
+  return info;
+}
 
 export class MediaService {
   async search(query: string) {
@@ -15,7 +26,7 @@ export class MediaService {
     const directVideoId = parseVideoId(trimmed);
     if (directVideoId) {
       try {
-        const info = await ytdlClient.getInfo(directVideoId);
+        const info = await getCachedInfo(directVideoId);
         const seconds = parseInt(info.videoDetails.lengthSeconds || '0', 10);
         const mins = Math.floor(seconds / 60);
         const secs = (seconds % 60).toString().padStart(2, '0');
@@ -150,7 +161,7 @@ export class MediaService {
 
       let format: any;
       try {
-        const info = await ytdlClient.getInfo(id);
+        const info = await getCachedInfo(id);
         format = chooseFormat(info.formats, {
           filter: { hasAudio: true, hasVideo: false },
           quality: 'highestaudio',
