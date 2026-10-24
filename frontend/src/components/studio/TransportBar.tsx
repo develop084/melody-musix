@@ -105,7 +105,7 @@ export function TransportBar({ onOpenProjects, onOpenSourceModal }: TransportBar
         durationMs,
         tracks,
       });
-      setNotification(`Saved project "${projectTitle}" to your account!`);
+      setNotification(`Saved project "${projectTitle}"!`);
       setTimeout(() => setNotification(null), 4000);
     } catch (err: any) {
       alert(`Failed to save project: ${err.response?.data?.message || err.message}`);

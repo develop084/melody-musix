@@ -1,16 +1,16 @@
 import { prisma } from '../../db/prisma';
 import { CreateProjectInput } from './project.schema';
-import { NotFoundError, ForbiddenError } from '../../utils/errors';
+import { NotFoundError } from '../../utils/errors';
 
 export class ProjectService {
-  async create(userId: string, input: CreateProjectInput) {
+  async create(userId: string | undefined, input: CreateProjectInput) {
     const project = await prisma.project.create({
       data: {
         title: input.title,
         bpm: input.bpm,
         durationMs: input.durationMs,
         tracksJson: JSON.stringify(input.tracks),
-        userId,
+        userId: userId || null,
       },
     });
 
@@ -20,15 +20,16 @@ export class ProjectService {
       bpm: project.bpm,
       durationMs: project.durationMs,
       tracks: JSON.parse(project.tracksJson),
-      userId: project.userId,
+      userId: project.userId || undefined,
       createdAt: project.createdAt.toISOString(),
       updatedAt: project.updatedAt.toISOString(),
     };
   }
 
-  async list(userId: string) {
+  async list(userId?: string) {
+    const where = userId ? { userId } : {};
     const projects = await prisma.project.findMany({
-      where: { userId },
+      where,
       orderBy: { updatedAt: 'desc' },
     });
 
@@ -38,23 +39,19 @@ export class ProjectService {
       bpm: p.bpm,
       durationMs: p.durationMs,
       tracks: JSON.parse(p.tracksJson),
-      userId: p.userId,
+      userId: p.userId || undefined,
       createdAt: p.createdAt.toISOString(),
       updatedAt: p.updatedAt.toISOString(),
     }));
   }
 
-  async getById(userId: string, id: string) {
+  async getById(id: string) {
     const project = await prisma.project.findUnique({
       where: { id },
     });
 
     if (!project) {
       throw new NotFoundError(`Project with ID '${id}' was not found`);
-    }
-
-    if (project.userId !== userId) {
-      throw new ForbiddenError('You do not have permission to access this project');
     }
 
     return {
@@ -63,23 +60,19 @@ export class ProjectService {
       bpm: project.bpm,
       durationMs: project.durationMs,
       tracks: JSON.parse(project.tracksJson),
-      userId: project.userId,
+      userId: project.userId || undefined,
       createdAt: project.createdAt.toISOString(),
       updatedAt: project.updatedAt.toISOString(),
     };
   }
 
-  async delete(userId: string, id: string) {
+  async delete(id: string) {
     const project = await prisma.project.findUnique({
       where: { id },
     });
 
     if (!project) {
       throw new NotFoundError(`Project with ID '${id}' was not found`);
-    }
-
-    if (project.userId !== userId) {
-      throw new ForbiddenError('You do not have permission to delete this project');
     }
 
     await prisma.project.delete({

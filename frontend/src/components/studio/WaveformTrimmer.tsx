@@ -13,7 +13,11 @@ import {
   Sparkles,
 } from 'lucide-react';
 
-export function WaveformTrimmer() {
+export interface WaveformTrimmerProps {
+  onOpenSourceModal?: () => void;
+}
+
+export function WaveformTrimmer({ onOpenSourceModal }: WaveformTrimmerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const {
@@ -110,15 +114,23 @@ export function WaveformTrimmer() {
 
   if (!sourceTrackInfo || !sourceAudioBuffer) {
     return (
-      <Card className="border-dashed border-2 border-slate-200 bg-slate-50/50">
-        <CardContent className="py-8 text-center space-y-2">
-          <div className="h-10 w-10 rounded-xl bg-blue-50 text-blue-600 mx-auto flex items-center justify-center">
+      <Card className="border-dashed border-2 border-slate-200 bg-white">
+        <CardContent className="py-7 text-center space-y-3">
+          <div className="h-10 w-10 rounded-xl bg-indigo-50 text-indigo-600 mx-auto flex items-center justify-center">
             <Scissors className="w-5 h-5" />
           </div>
-          <h4 className="text-sm font-semibold text-slate-800">No Song Loaded in Trimmer</h4>
-          <p className="text-xs text-slate-500 max-w-sm mx-auto">
-            Click "Add Audio / YouTube" above to source a song or loop and extract melody snippets.
-          </p>
+          <div>
+            <h4 className="text-sm font-bold text-slate-800">No Song Loaded in Trimmer</h4>
+            <p className="text-xs text-slate-500 max-w-sm mx-auto mt-0.5">
+              Select or search a song on YouTube, or choose from our studio loops to extract snippets.
+            </p>
+          </div>
+          {onOpenSourceModal && (
+            <Button size="sm" onClick={onOpenSourceModal} className="text-xs bg-indigo-600 hover:bg-indigo-700 shadow-sm">
+              <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+              Search YouTube / Browse Loops
+            </Button>
+          )}
         </CardContent>
       </Card>
     );

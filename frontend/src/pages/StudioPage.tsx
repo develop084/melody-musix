@@ -32,7 +32,7 @@ export function StudioPage() {
       />
 
       {/* Visual Waveform Snippet Trimmer */}
-      <WaveformTrimmer />
+      <WaveformTrimmer onOpenSourceModal={() => setIsSourceModalOpen(true)} />
 
       {/* Multitrack Arrangement Timeline */}
       <TimelineEditor />

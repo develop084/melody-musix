@@ -38,8 +38,8 @@ model Project {
   bpm        Int      @default(120)
   durationMs Int      @default(60000)
   tracksJson String   @default("[]")
-  userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 

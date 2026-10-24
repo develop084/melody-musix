@@ -6,7 +6,6 @@ import { createProjectSchema } from './project.schema';
 
 const router = Router();
 
-router.use(authenticate);
 
 router.get('/', projectController.list.bind(projectController));
 router.post(

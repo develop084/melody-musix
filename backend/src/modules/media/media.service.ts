@@ -1,6 +1,6 @@
 import ytsr from 'ytsr';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const { Ytdl, parseVideoId } = require('@distube/ytdl-core');
+const { Ytdl, parseVideoId, chooseFormat } = require('@distube/ytdl-core');
 import { Request, Response } from 'express';
 import { SAMPLE_TRACKS } from './sampleAudio';
 import { NotFoundError } from '../../utils/errors';
@@ -50,7 +50,30 @@ export class MediaService {
     }));
 
     try {
-      // Use ytsr to search YouTube without an API key
+      // 1. Try native ytdl search first (clean, fast, no scraping parser warnings)
+      const results = await ytdlClient.search(trimmed);
+      if (Array.isArray(results) && results.length > 0) {
+        const ytTracks = results.slice(0, 15).map((v: any) => {
+          const seconds = parseInt(v.lengthSeconds || '0', 10);
+          const mins = Math.floor(seconds / 60);
+          const secs = (seconds % 60).toString().padStart(2, '0');
+          return {
+            id: v.id,
+            title: v.title,
+            url: `/api/v1/media/stream?videoId=${v.id}`,
+            duration: seconds > 0 ? `${mins}:${secs}` : 'Live/Unknown',
+            thumbnail: v.thumbnails?.[0]?.url || '',
+            author: v.author?.name || 'YouTube Creator',
+          };
+        });
+        return [...matchingSamples, ...ytTracks];
+      }
+    } catch (ytdlSearchErr) {
+      console.warn('ytdl search failed, attempting fallback to ytsr:', ytdlSearchErr);
+    }
+
+    try {
+      // 2. Fallback to ytsr
       const searchResults = await ytsr(trimmed, { limit: 12 });
       const videoItems = searchResults.items.filter(
         (item): item is ytsr.Video => item.type === 'video'
@@ -59,7 +82,7 @@ export class MediaService {
       const ytTracks = videoItems.map((v) => ({
         id: v.id,
         title: v.title,
-        url: `/api/v1/media/stream?videoId=${v.id}`, // Proxied CORS audio stream
+        url: `/api/v1/media/stream?videoId=${v.id}`,
         duration: v.duration || '0:00',
         thumbnail: v.bestThumbnail?.url || (v.thumbnails && v.thumbnails[0]?.url) || '',
         author: v.author?.name || 'YouTube Creator',
@@ -125,14 +148,31 @@ export class MediaService {
     try {
       const id = parseVideoId(videoId) || videoId;
 
-      const audioStream = ytdlClient.download(id, {
-        filter: { hasAudio: true, hasVideo: false },
-        quality: 'highestaudio',
-      });
+      let format: any;
+      try {
+        const info = await ytdlClient.getInfo(id);
+        format = chooseFormat(info.formats, {
+          filter: { hasAudio: true, hasVideo: false },
+          quality: 'highestaudio',
+        });
+      } catch (infoErr) {
+        console.warn('Could not pre-fetch info format, downloading directly:', infoErr);
+      }
 
-      res.setHeader('Content-Type', 'audio/webm');
+      const mimeType = format?.mimeType?.split(';')[0] || 'audio/mp4';
+      res.setHeader('Content-Type', mimeType);
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Accept-Ranges', 'bytes');
+      if (format?.contentLength) {
+        res.setHeader('Content-Length', format.contentLength);
+      }
+
+      const audioStream = format
+        ? ytdlClient.download(id, { format })
+        : ytdlClient.download(id, {
+            filter: { hasAudio: true, hasVideo: false },
+            quality: 'highestaudio',
+          });
 
       audioStream.on('error', (err: any) => {
         console.error('ytdl stream error:', err);
