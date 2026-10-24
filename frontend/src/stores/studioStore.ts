@@ -66,9 +66,11 @@ interface StudioState {
   playMasterTimeline: () => void;
   stopMasterTimeline: () => void;
 
-  // Loop & Grid
+  // Loop, Grid & Metronome
   isLooping: boolean;
   toggleLoop: () => void;
+  isMetronomeActive: boolean;
+  toggleMetronome: () => void;
   snapToGrid: 'off' | '1/4' | '1/2' | '1';
   setSnapToGrid: (snap: 'off' | '1/4' | '1/2' | '1') => void;
 
@@ -370,6 +372,9 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   toggleLoop: () => set((s) => ({ isLooping: !s.isLooping })),
 
   snapToGrid: '1/4',
+  isMetronomeActive: false,
+  toggleMetronome: () => set((state) => ({ isMetronomeActive: !state.isMetronomeActive })),
+
   setSnapToGrid: (snap) => set({ snapToGrid: snap }),
 
   masterFilterFreq: 20000,
@@ -392,12 +397,23 @@ export const useStudioStore = create<StudioState>((set, get) => ({
 
     playbackStartTimestamp = performance.now();
     playbackInitialOffsetMs = currentTimeMs;
+    let lastMetronomeBeat = -1;
     set({ isPlaying: true });
 
     const tick = () => {
       if (!get().isPlaying) return;
       const elapsed = performance.now() - playbackStartTimestamp;
       const current = playbackInitialOffsetMs + elapsed;
+
+      // Play synchronized metronome clicks if enabled
+      if (get().isMetronomeActive) {
+        const beatMs = (60 / get().bpm) * 1000;
+        const currentBeat = Math.floor(current / beatMs);
+        if (currentBeat !== lastMetronomeBeat) {
+          lastMetronomeBeat = currentBeat;
+          audioEngine.playClick(currentBeat % 4 === 0);
+        }
+      }
 
       if (current >= durationMs) {
         if (get().isLooping) {

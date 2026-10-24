@@ -80,6 +80,27 @@ class AudioEngine {
     this.masterGainNode.gain.setTargetAtTime(clamped, this.ctx.currentTime, 0.05);
   }
 
+  // Synthesized real-time metronome click (zero asset dependencies)
+  public playClick(isAccent = false) {
+    try {
+      const ctx = this.getContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(isAccent ? 1200 : 800, ctx.currentTime);
+
+      gain.gain.setValueAtTime(0.25, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.035);
+
+      osc.connect(gain);
+      gain.connect(this.getMasterBus());
+
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.04);
+    } catch {}
+  }
+
   // Fetch and decode audio stream into AudioBuffer
   async decodeAudioFromUrl(url: string): Promise<AudioBuffer> {
     if (this.bufferCache.has(url)) {

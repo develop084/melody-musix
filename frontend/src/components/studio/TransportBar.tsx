@@ -5,6 +5,7 @@ import { projectsApi } from '../../api/projects';
 import { MasterVisualizer } from './MasterVisualizer';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
+import { Modal } from '../ui/Modal';
 import {
   Play,
   Pause,
@@ -21,6 +22,9 @@ import {
   Redo2,
   SlidersHorizontal,
   RotateCcw,
+  Timer,
+  HelpCircle,
+  Keyboard,
 } from 'lucide-react';
 
 interface TransportBarProps {
@@ -38,6 +42,8 @@ export function TransportBar({ onOpenProjects, onOpenSourceModal }: TransportBar
     isPlaying,
     isLooping,
     toggleLoop,
+    isMetronomeActive,
+    toggleMetronome,
     masterFilterFreq,
     setMasterFilterFreq,
     canUndo,
@@ -57,6 +63,7 @@ export function TransportBar({ onOpenProjects, onOpenSourceModal }: TransportBar
 
   const [exportFormat, setExportFormat] = useState<AudioExportFormat>('mp3-192');
   const [showFilterControl, setShowFilterControl] = useState(false);
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
@@ -183,6 +190,16 @@ export function TransportBar({ onOpenProjects, onOpenSourceModal }: TransportBar
             <Button
               variant="outline"
               size="sm"
+              onClick={() => setIsShortcutsOpen(true)}
+              className="text-xs border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center font-medium h-8 px-2"
+              title="Keyboard & Touch Shortcuts"
+            >
+              <HelpCircle className="w-3.5 h-3.5 sm:mr-1 text-slate-500" />
+              <span className="hidden sm:inline">Shortcuts</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleLoadDemo}
               isLoading={isLoadingDemo}
               className="text-xs border-purple-200 text-purple-700 hover:bg-purple-50 shadow-sm flex items-center font-medium"
@@ -244,6 +261,21 @@ export function TransportBar({ onOpenProjects, onOpenSourceModal }: TransportBar
               title={isLooping ? 'Looping is ON (click to disable)' : 'Enable Continuous Looping'}
             >
               <Repeat className={`w-4 h-4 ${isLooping ? 'text-amber-600 stroke-[2.5]' : ''}`} />
+            </Button>
+
+            {/* Metronome Click Track Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={toggleMetronome}
+              className={`h-9 w-9 p-0 transition-colors ${
+                isMetronomeActive
+                  ? 'bg-blue-50 border-blue-300 text-blue-600 hover:bg-blue-100'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+              title={isMetronomeActive ? 'Metronome click is ON (click to disable)' : 'Enable Metronome (Click track)'}
+            >
+              <Timer className={`w-4 h-4 ${isMetronomeActive ? 'text-blue-600 stroke-[2.5]' : ''}`} />
             </Button>
 
             {/* Undo Button */}
@@ -442,6 +474,70 @@ export function TransportBar({ onOpenProjects, onOpenSourceModal }: TransportBar
           </div>
         )}
       </div>
+
+      {/* Keyboard & Touch Shortcuts Modal */}
+      <Modal
+        isOpen={isShortcutsOpen}
+        onClose={() => setIsShortcutsOpen(false)}
+        title="Pro Keyboard & Touch Shortcuts"
+        description="Speed up your audio editing and melody arrangement"
+      >
+        <div className="space-y-2.5 pt-2 text-xs text-slate-700">
+          <div className="grid grid-cols-2 gap-2 border-b border-slate-100 pb-2">
+            <div className="flex items-center gap-1.5 font-mono font-bold text-slate-900 bg-slate-100 px-2 py-1 rounded">
+              <Keyboard className="w-3.5 h-3.5 text-blue-600" />
+              <span>Space</span>
+            </div>
+            <div className="flex items-center text-slate-600">Play / Pause Timeline</div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 border-b border-slate-100 pb-2">
+            <div className="flex items-center gap-1.5 font-mono font-bold text-slate-900 bg-slate-100 px-2 py-1 rounded">
+              <Keyboard className="w-3.5 h-3.5 text-blue-600" />
+              <span>Ctrl + Z</span>
+            </div>
+            <div className="flex items-center text-slate-600">Undo last arrangement change</div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 border-b border-slate-100 pb-2">
+            <div className="flex items-center gap-1.5 font-mono font-bold text-slate-900 bg-slate-100 px-2 py-1 rounded">
+              <Keyboard className="w-3.5 h-3.5 text-blue-600" />
+              <span>Ctrl + Y</span>
+            </div>
+            <div className="flex items-center text-slate-600">Redo undone change</div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 border-b border-slate-100 pb-2">
+            <div className="flex items-center gap-1.5 font-mono font-bold text-slate-900 bg-slate-100 px-2 py-1 rounded">
+              <Repeat className="w-3.5 h-3.5 text-amber-600" />
+              <span>Loop Icon</span>
+            </div>
+            <div className="flex items-center text-slate-600">Toggle seamless continuous cycle</div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 border-b border-slate-100 pb-2">
+            <div className="flex items-center gap-1.5 font-mono font-bold text-slate-900 bg-slate-100 px-2 py-1 rounded">
+              <Timer className="w-3.5 h-3.5 text-blue-600" />
+              <span>Timer Icon</span>
+            </div>
+            <div className="flex items-center text-slate-600">Toggle metronome rhythm click</div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 border-b border-slate-100 pb-2">
+            <div className="flex items-center gap-1.5 font-mono font-bold text-slate-900 bg-slate-100 px-2 py-1 rounded">
+              <span>◀ / ▶ Buttons</span>
+            </div>
+            <div className="flex items-center text-slate-600">Touch-friendly clip nudge on phones</div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 pb-1">
+            <div className="flex items-center gap-1.5 font-mono font-bold text-slate-900 bg-slate-100 px-2 py-1 rounded">
+              <span>Copy Icon</span>
+            </div>
+            <div className="flex items-center text-slate-600">Instant clip duplicate & repeat</div>
+          </div>
+        </div>
+      </Modal>
     </Card>
   );
 }
