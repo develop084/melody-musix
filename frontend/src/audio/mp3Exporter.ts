@@ -13,6 +13,14 @@ export async function renderTimelineToAudioBuffer(
   // Initialize OfflineAudioContext for fast headless rendering
   const offlineCtx = new OfflineAudioContext(2, totalSamples, sampleRate);
 
+  // Master brickwall limiter to prevent clipping on export
+  const masterLimiter = offlineCtx.createDynamicsCompressor();
+  masterLimiter.threshold.setValueAtTime(-0.8, 0);
+  masterLimiter.ratio.setValueAtTime(20, 0);
+  masterLimiter.attack.setValueAtTime(0.003, 0);
+  masterLimiter.release.setValueAtTime(0.05, 0);
+  masterLimiter.connect(offlineCtx.destination);
+
   const hasSolo = tracks.some((t) => t.solo);
 
   for (const track of tracks) {
@@ -20,7 +28,7 @@ export async function renderTimelineToAudioBuffer(
 
     const trackGain = offlineCtx.createGain();
     trackGain.gain.setValueAtTime(track.volume, 0);
-    trackGain.connect(offlineCtx.destination);
+    trackGain.connect(masterLimiter);
 
     for (const clip of track.clips) {
       const buffer = audioEngine.getCachedBuffer(clip.sourceUrl);
@@ -148,27 +156,49 @@ export function encodeAudioBufferToWav(audioBuffer: AudioBuffer): Blob {
   return new Blob([buffer], { type: 'audio/wav' });
 }
 
+export type AudioExportFormat = 'mp3-192' | 'mp3-320' | 'wav';
+
+export async function renderAndExportAudio(
+  tracks: Track[],
+  totalDurationMs: number,
+  format: AudioExportFormat = 'mp3-192',
+  onProgress?: (percent: number) => void
+): Promise<{ blob: Blob; extension: string }> {
+  await audioEngine.preloadTrackBuffers(tracks);
+  onProgress?.(20);
+
+  const renderedBuffer = await renderTimelineToAudioBuffer(tracks, totalDurationMs);
+  onProgress?.(50);
+
+  if (format === 'wav') {
+    const wavBlob = encodeAudioBufferToWav(renderedBuffer);
+    onProgress?.(100);
+    return { blob: wavBlob, extension: 'wav' };
+  }
+
+  const bitrate = format === 'mp3-320' ? 320 : 192;
+  try {
+    const mp3Blob = encodeAudioBufferToMp3(renderedBuffer, bitrate, (pct) => {
+      onProgress?.(50 + Math.floor(pct * 0.5));
+    });
+    return { blob: mp3Blob, extension: 'mp3' };
+  } catch (err) {
+    console.warn('MP3 encoding failed, falling back to WAV:', err);
+    const wavBlob = encodeAudioBufferToWav(renderedBuffer);
+    onProgress?.(100);
+    return { blob: wavBlob, extension: 'wav' };
+  }
+}
+
 export async function renderAndExportMp3(
   tracks: Track[],
   totalDurationMs: number,
   bitrateKbps = 192,
   onProgress?: (percent: number) => void
 ): Promise<Blob> {
-  // Preload any uncached track buffers first
-  await audioEngine.preloadTrackBuffers(tracks);
-  onProgress?.(15);
-
-  const renderedBuffer = await renderTimelineToAudioBuffer(tracks, totalDurationMs);
-  onProgress?.(40);
-
-  try {
-    return encodeAudioBufferToMp3(renderedBuffer, bitrateKbps, (pct) => {
-      onProgress?.(40 + Math.floor(pct * 0.6));
-    });
-  } catch (err) {
-    console.warn('LAME MP3 encoding encountered error, generating lossless WAV fallback:', err);
-    return encodeAudioBufferToWav(renderedBuffer);
-  }
+  const format: AudioExportFormat = bitrateKbps >= 320 ? 'mp3-320' : 'mp3-192';
+  const { blob } = await renderAndExportAudio(tracks, totalDurationMs, format, onProgress);
+  return blob;
 }
 
 export function downloadBlob(blob: Blob, filename: string) {

@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { useStudioStore } from '../../stores/studioStore';
 import { audioEngine } from '../../audio/audioEngine';
 import { Button } from '../ui/Button';
@@ -40,10 +40,37 @@ export function WaveformTrimmer({ onOpenSourceModal }: WaveformTrimmerProps) {
     addClipToSelectedTrack,
   } = useStudioStore();
 
+  const [snippetPlaybackMs, setSnippetPlaybackMs] = useState<number | null>(null);
+
   const totalDurationSec = sourceAudioBuffer?.duration || 1;
   const totalDurationMs = Math.floor(totalDurationSec * 1000);
 
-  // Render Waveform Canvas
+  // Live playhead tracking during snippet preview
+  useEffect(() => {
+    if (!isSnippetPlaying) {
+      setSnippetPlaybackMs(null);
+      return;
+    }
+
+    const startEpoch = performance.now();
+    const snippetDurMs = Math.max(100, trimEndMs - trimStartMs);
+    let rafId: number;
+
+    const tick = () => {
+      const elapsed = performance.now() - startEpoch;
+      if (elapsed >= snippetDurMs) {
+        setSnippetPlaybackMs(null);
+        return;
+      }
+      setSnippetPlaybackMs(trimStartMs + elapsed);
+      rafId = requestAnimationFrame(tick);
+    };
+
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [isSnippetPlaying, trimStartMs, trimEndMs]);
+
+  // Render Waveform Canvas with interactive markers and live playhead
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !sourceAudioBuffer) return;
@@ -88,11 +115,28 @@ export function WaveformTrimmer({ onOpenSourceModal }: WaveformTrimmerProps) {
       ctx.stroke();
     }
 
-    // Draw Trim Boundary Lines
+    // Draw Trim Boundary In/Out Lines
     ctx.fillStyle = '#1d4ed8';
     ctx.fillRect(inPx - 1, 0, 3, height);
     ctx.fillRect(outPx - 1, 0, 3, height);
-  }, [sourceAudioBuffer, trimStartMs, trimEndMs, totalDurationMs]);
+
+    // Draw Live Playhead when preview snippet is playing
+    if (snippetPlaybackMs !== null) {
+      const playheadRatio = Math.max(0, Math.min(1, snippetPlaybackMs / totalDurationMs));
+      const playheadPx = playheadRatio * width;
+
+      // Bright red playhead line
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(playheadPx - 1, 0, 2.5, height);
+
+      // Playhead top triangle indicator
+      ctx.beginPath();
+      ctx.moveTo(playheadPx - 5, 0);
+      ctx.lineTo(playheadPx + 5, 0);
+      ctx.lineTo(playheadPx, 8);
+      ctx.fill();
+    }
+  }, [sourceAudioBuffer, trimStartMs, trimEndMs, totalDurationMs, snippetPlaybackMs]);
 
   const handlePlaySnippet = () => {
     if (!sourceAudioBuffer) return;
@@ -100,6 +144,7 @@ export function WaveformTrimmer({ onOpenSourceModal }: WaveformTrimmerProps) {
     if (isSnippetPlaying) {
       audioEngine.stopSnippet();
       setIsSnippetPlaying(false);
+      setSnippetPlaybackMs(null);
       return;
     }
 
@@ -109,6 +154,7 @@ export function WaveformTrimmer({ onOpenSourceModal }: WaveformTrimmerProps) {
     setIsSnippetPlaying(true);
     audioEngine.playSnippet(sourceAudioBuffer, startSec, durationSec, trimVolume, () => {
       setIsSnippetPlaying(false);
+      setSnippetPlaybackMs(null);
     });
   };
 

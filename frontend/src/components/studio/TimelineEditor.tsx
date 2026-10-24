@@ -7,9 +7,10 @@ import {
   Plus,
   Trash2,
   X,
-  GripHorizontal,
+  Copy,
   ChevronLeft,
   ChevronRight,
+  Magnet,
 } from 'lucide-react';
 
 export function TimelineEditor() {
@@ -17,10 +18,14 @@ export function TimelineEditor() {
 
   const {
     tracks,
+    bpm,
     durationMs,
     currentTimeMs,
     selectedTrackId,
     isPlaying,
+    snapToGrid,
+    setSnapToGrid,
+    duplicateClip,
     setSelectedTrackId,
     setCurrentTimeMs,
     removeClip,
@@ -34,6 +39,29 @@ export function TimelineEditor() {
 
   const totalDurationSec = durationMs / 1000;
   const playheadPercent = Math.min(100, Math.max(0, (currentTimeMs / durationMs) * 100));
+
+  // Snap to Grid calculations based on project BPM
+  const beatMs = (60 / bpm) * 1000;
+  const getSnapStepMs = () => {
+    if (snapToGrid === '1/4') return beatMs; // 1 beat
+    if (snapToGrid === '1/2') return beatMs * 2; // 2 beats
+    if (snapToGrid === '1') return beatMs * 4; // 1 bar (4 beats)
+    return 0;
+  };
+
+  const snapTime = (timeMs: number): number => {
+    const step = getSnapStepMs();
+    if (step <= 0) return timeMs;
+    return Math.round(timeMs / step) * step;
+  };
+
+  const gridStepMs = getSnapStepMs();
+  const gridTicks: number[] = [];
+  if (gridStepMs > 0) {
+    for (let ms = gridStepMs; ms < durationMs; ms += gridStepMs) {
+      gridTicks.push((ms / durationMs) * 100);
+    }
+  }
 
   const handleScrub = (clientX: number) => {
     if (!rulerRef.current) return;
@@ -62,7 +90,8 @@ export function TimelineEditor() {
     e.preventDefault();
     const laneRect = e.currentTarget.getBoundingClientRect();
     const dropX = e.clientX - laneRect.left;
-    const targetMs = Math.max(0, Math.min(durationMs, (dropX / laneRect.width) * durationMs));
+    const rawTargetMs = Math.max(0, Math.min(durationMs, (dropX / laneRect.width) * durationMs));
+    const targetMs = snapTime(rawTargetMs);
 
     try {
       const data = JSON.parse(e.dataTransfer.getData('text/plain'));
@@ -73,13 +102,14 @@ export function TimelineEditor() {
   };
 
   // Nudge clip position by delta (for mobile and touch screen users)
-  const nudgeClip = (e: React.MouseEvent | React.TouchEvent, trackId: string, clipId: string, deltaMs: number) => {
+  const nudgeClip = (e: React.MouseEvent | React.TouchEvent, trackId: string, clipId: string, direction: -1 | 1) => {
     e.stopPropagation();
     const track = tracks.find((t) => t.id === trackId);
     if (!track) return;
     const clip = track.clips.find((c) => c.id === clipId);
     if (!clip) return;
-    const nextStart = Math.max(0, Math.min(durationMs - 200, clip.timelineStartMs + deltaMs));
+    const step = getSnapStepMs() || 1000;
+    const nextStart = Math.max(0, Math.min(durationMs - 200, snapTime(clip.timelineStartMs + direction * step)));
     updateClipPosition(trackId, clipId, nextStart);
   };
 
@@ -224,6 +254,15 @@ export function TimelineEditor() {
                 {/* Horizontal grid guide line */}
                 <div className="absolute inset-x-0 top-1/2 border-b border-dashed border-slate-200/60 pointer-events-none" />
 
+                {/* Rhythmic Beat Grid Lines */}
+                {gridTicks.map((pct, idx) => (
+                  <div
+                    key={idx}
+                    style={{ left: `${pct}%` }}
+                    className="absolute top-0 bottom-0 w-px border-r border-dashed border-slate-200/70 pointer-events-none z-0"
+                  />
+                ))}
+
                 {track.clips.length === 0 && (
                   <div className="absolute inset-0 flex items-center justify-center text-[10px] sm:text-[11px] text-slate-300 pointer-events-none px-2 text-center">
                     Tap to position or select track & click "Add to Timeline"
@@ -251,17 +290,30 @@ export function TimelineEditor() {
                         <span className="text-[10px] sm:text-[11px] font-bold truncate leading-tight flex-1">
                           {clip.sourceTitle}
                         </span>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeClip(track.id, clip.id);
-                          }}
-                          className="hover:bg-black/30 rounded p-0.5 text-white flex-shrink-0"
-                          title="Delete Clip"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
+                        <div className="flex items-center gap-0.5 flex-shrink-0">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              duplicateClip(track.id, clip.id);
+                            }}
+                            className="hover:bg-black/30 rounded p-0.5 text-white/90 hover:text-white"
+                            title="Duplicate Clip (Repeat)"
+                          >
+                            <Copy className="w-3 h-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeClip(track.id, clip.id);
+                            }}
+                            className="hover:bg-black/30 rounded p-0.5 text-white/90 hover:text-white"
+                            title="Delete Clip"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
                       </div>
 
                       {/* Touch Nudge & Duration Bar (Works on Phones & Desktops) */}
@@ -269,17 +321,17 @@ export function TimelineEditor() {
                         <div className="flex items-center gap-0.5">
                           <button
                             type="button"
-                            onClick={(e) => nudgeClip(e, track.id, clip.id, -1000)}
+                            onClick={(e) => nudgeClip(e, track.id, clip.id, -1)}
                             className="bg-black/30 hover:bg-black/50 rounded px-1 py-0.5 active:scale-95"
-                            title="Nudge 1s Left"
+                            title="Nudge Left"
                           >
                             <ChevronLeft className="w-2.5 h-2.5" />
                           </button>
                           <button
                             type="button"
-                            onClick={(e) => nudgeClip(e, track.id, clip.id, 1000)}
+                            onClick={(e) => nudgeClip(e, track.id, clip.id, 1)}
                             className="bg-black/30 hover:bg-black/50 rounded px-1 py-0.5 active:scale-95"
-                            title="Nudge 1s Right"
+                            title="Nudge Right"
                           >
                             <ChevronRight className="w-2.5 h-2.5" />
                           </button>
@@ -296,14 +348,34 @@ export function TimelineEditor() {
         })}
       </div>
 
-      {/* Add Track Action Bar */}
-      <div className="p-2 sm:p-2.5 bg-slate-50/75 border-t border-slate-200 flex justify-between items-center text-xs">
-        <Button variant="outline" size="sm" onClick={() => addTrack()} className="text-xs h-8">
-          <Plus className="w-3.5 h-3.5 mr-1" />
-          Add Audio Track
-        </Button>
-        <span className="text-slate-400 text-[10px] sm:text-[11px] truncate ml-2">
-          Arrangement Timeline • Non-destructive Mixing
+      {/* Add Track & Snap to Grid Action Bar */}
+      <div className="p-2 sm:p-2.5 bg-slate-50/75 border-t border-slate-200 flex flex-wrap justify-between items-center gap-2 text-xs">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => addTrack()} className="text-xs h-8">
+            <Plus className="w-3.5 h-3.5 mr-1" />
+            Add Audio Track
+          </Button>
+
+          {/* Rhythmic Snap Selector */}
+          <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-slate-200 rounded-lg shadow-sm">
+            <Magnet className="w-3.5 h-3.5 text-blue-600" />
+            <span className="text-[11px] font-semibold text-slate-600 hidden sm:inline">Snap:</span>
+            <select
+              value={snapToGrid}
+              onChange={(e) => setSnapToGrid(e.target.value as any)}
+              className="text-xs font-semibold bg-transparent border-none outline-none cursor-pointer text-slate-800"
+              title="Snap clips to musical grid beats"
+            >
+              <option value="off">Smooth (Off)</option>
+              <option value="1/4">1 Beat</option>
+              <option value="1/2">2 Beats</option>
+              <option value="1">1 Bar</option>
+            </select>
+          </div>
+        </div>
+
+        <span className="text-slate-400 text-[10px] sm:text-[11px] truncate">
+          Arrangement Timeline • Non-destructive Mixing • {bpm} BPM
         </span>
       </div>
     </Card>

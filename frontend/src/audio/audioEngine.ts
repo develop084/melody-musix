@@ -7,6 +7,13 @@ class AudioEngine {
   private previewSourceNode: AudioBufferSourceNode | null = null;
   private previewGainNode: GainNode | null = null;
 
+  // Master Audio Bus & Effects Chain
+  private masterGainNode: GainNode | null = null;
+  private masterFilterNode: BiquadFilterNode | null = null;
+  private masterLimiterNode: DynamicsCompressorNode | null = null;
+  private analyserNode: AnalyserNode | null = null;
+  private analyserDataArray: Uint8Array | null = null;
+
   public getContext(): AudioContext {
     if (!this.ctx) {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
@@ -15,7 +22,62 @@ class AudioEngine {
     if (this.ctx.state === 'suspended') {
       this.ctx.resume();
     }
+    this.initMasterChain(this.ctx);
     return this.ctx;
+  }
+
+  private initMasterChain(ctx: AudioContext) {
+    if (this.masterGainNode) return;
+
+    this.masterGainNode = ctx.createGain();
+    this.masterGainNode.gain.setValueAtTime(1.0, ctx.currentTime);
+
+    this.masterFilterNode = ctx.createBiquadFilter();
+    this.masterFilterNode.type = 'lowpass';
+    this.masterFilterNode.frequency.setValueAtTime(20000, ctx.currentTime);
+
+    this.masterLimiterNode = ctx.createDynamicsCompressor();
+    this.masterLimiterNode.threshold.setValueAtTime(-1.0, ctx.currentTime);
+    this.masterLimiterNode.knee.setValueAtTime(0, ctx.currentTime);
+    this.masterLimiterNode.ratio.setValueAtTime(20, ctx.currentTime);
+    this.masterLimiterNode.attack.setValueAtTime(0.003, ctx.currentTime);
+    this.masterLimiterNode.release.setValueAtTime(0.05, ctx.currentTime);
+
+    this.analyserNode = ctx.createAnalyser();
+    this.analyserNode.fftSize = 64;
+    this.analyserNode.smoothingTimeConstant = 0.8;
+    this.analyserDataArray = new Uint8Array(this.analyserNode.frequencyBinCount);
+
+    this.masterGainNode.connect(this.masterFilterNode);
+    this.masterFilterNode.connect(this.masterLimiterNode);
+    this.masterLimiterNode.connect(this.analyserNode);
+    this.analyserNode.connect(ctx.destination);
+  }
+
+  public getMasterBus(): AudioNode {
+    const ctx = this.getContext();
+    this.initMasterChain(ctx);
+    return this.masterGainNode!;
+  }
+
+  public getFrequencyData(): Uint8Array {
+    if (!this.analyserNode || !this.analyserDataArray) {
+      return new Uint8Array(0);
+    }
+    this.analyserNode.getByteFrequencyData(this.analyserDataArray as any);
+    return this.analyserDataArray;
+  }
+
+  public setMasterFilterFrequency(freq: number) {
+    if (!this.masterFilterNode || !this.ctx) return;
+    const clamped = Math.max(200, Math.min(20000, freq));
+    this.masterFilterNode.frequency.setTargetAtTime(clamped, this.ctx.currentTime, 0.05);
+  }
+
+  public setMasterVolume(vol: number) {
+    if (!this.masterGainNode || !this.ctx) return;
+    const clamped = Math.max(0, Math.min(2.0, vol));
+    this.masterGainNode.gain.setTargetAtTime(clamped, this.ctx.currentTime, 0.05);
   }
 
   // Fetch and decode audio stream into AudioBuffer
@@ -87,7 +149,7 @@ class AudioEngine {
     gainNode.gain.setValueAtTime(volume, ctx.currentTime);
 
     source.connect(gainNode);
-    gainNode.connect(ctx.destination);
+    gainNode.connect(this.getMasterBus());
 
     const safeDuration = Math.min(durationSec, Math.max(0, buffer.duration - startOffsetSec));
     source.start(0, startOffsetSec, safeDuration);
@@ -131,7 +193,7 @@ class AudioEngine {
 
       const trackGainNode = ctx.createGain();
       trackGainNode.gain.setValueAtTime(track.volume, ctx.currentTime);
-      trackGainNode.connect(ctx.destination);
+      trackGainNode.connect(this.getMasterBus());
 
       for (const clip of track.clips) {
         const buffer = this.bufferCache.get(clip.sourceUrl);

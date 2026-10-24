@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useStudioStore } from '../../stores/studioStore';
-import { renderAndExportMp3, downloadBlob } from '../../audio/mp3Exporter';
+import { renderAndExportAudio, AudioExportFormat, downloadBlob } from '../../audio/mp3Exporter';
 import { projectsApi } from '../../api/projects';
+import { MasterVisualizer } from './MasterVisualizer';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
-import { Modal } from '../ui/Modal';
 import {
   Play,
   Pause,
   Square,
+  Repeat,
   Download,
   Save,
   FolderOpen,
@@ -18,6 +19,8 @@ import {
   Loader2,
   Undo2,
   Redo2,
+  SlidersHorizontal,
+  RotateCcw,
 } from 'lucide-react';
 
 interface TransportBarProps {
@@ -33,6 +36,10 @@ export function TransportBar({ onOpenProjects, onOpenSourceModal }: TransportBar
     durationMs,
     currentTimeMs,
     isPlaying,
+    isLooping,
+    toggleLoop,
+    masterFilterFreq,
+    setMasterFilterFreq,
     canUndo,
     canRedo,
     undo,
@@ -45,11 +52,15 @@ export function TransportBar({ onOpenProjects, onOpenSourceModal }: TransportBar
     playMasterTimeline,
     stopMasterTimeline,
     setCurrentTimeMs,
+    loadDemoProject,
   } = useStudioStore();
 
+  const [exportFormat, setExportFormat] = useState<AudioExportFormat>('mp3-192');
+  const [showFilterControl, setShowFilterControl] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoadingDemo, setIsLoadingDemo] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
 
   // Global Undo / Redo keyboard shortcuts (Ctrl+Z / Cmd+Z, Ctrl+Y / Cmd+Shift+Z)
@@ -97,10 +108,10 @@ export function TransportBar({ onOpenProjects, onOpenSourceModal }: TransportBar
     setCurrentTimeMs(0);
   };
 
-  const handleExportMp3 = async () => {
+  const handleExport = async () => {
     const totalClips = tracks.reduce((acc, t) => acc + t.clips.length, 0);
     if (totalClips === 0) {
-      alert('Your timeline is empty! Add clips to the tracks first before exporting.');
+      alert('Your timeline is empty! Add clips or click "1-Click Demo" first before exporting.');
       return;
     }
 
@@ -108,17 +119,17 @@ export function TransportBar({ onOpenProjects, onOpenSourceModal }: TransportBar
     setExportProgress(5);
 
     try {
-      const mp3Blob = await renderAndExportMp3(tracks, durationMs, 192, (pct) => {
+      const { blob, extension } = await renderAndExportAudio(tracks, durationMs, exportFormat, (pct) => {
         setExportProgress(pct);
       });
 
-      const safeFilename = `${projectTitle.toLowerCase().replace(/[^a-z0-9]/g, '_')}.mp3`;
-      downloadBlob(mp3Blob, safeFilename);
+      const safeFilename = `${projectTitle.toLowerCase().replace(/[^a-z0-9]/g, '_')}.${extension}`;
+      downloadBlob(blob, safeFilename);
 
       setNotification(`🎉 Successfully exported & downloaded "${safeFilename}"!`);
       setTimeout(() => setNotification(null), 5000);
     } catch (err: any) {
-      alert(`MP3 Export failed: ${err.message || 'Unknown error'}`);
+      alert(`Audio Export failed: ${err.message || 'Unknown error'}`);
     } finally {
       setIsExporting(false);
       setExportProgress(0);
@@ -143,10 +154,23 @@ export function TransportBar({ onOpenProjects, onOpenSourceModal }: TransportBar
     }
   };
 
+  const handleLoadDemo = async () => {
+    setIsLoadingDemo(true);
+    try {
+      await loadDemoProject();
+      setNotification('✨ Chill Medley Demo loaded! Press Play to listen.');
+      setTimeout(() => setNotification(null), 4000);
+    } catch (err) {
+      alert('Failed to load demo project');
+    } finally {
+      setIsLoadingDemo(false);
+    }
+  };
+
   return (
     <Card className="border-slate-200 shadow-sm p-3 sm:p-4 bg-white">
       <div className="flex flex-col gap-3">
-        {/* Row 1: Title input & Audio Source Action */}
+        {/* Row 1: Title input, Demo Melody & Audio Source Action */}
         <div className="flex flex-wrap items-center justify-between gap-2.5">
           <input
             type="text"
@@ -155,20 +179,33 @@ export function TransportBar({ onOpenProjects, onOpenSourceModal }: TransportBar
             className="text-sm sm:text-base font-bold text-slate-900 border-b border-transparent hover:border-slate-300 focus:border-blue-500 focus:outline-none px-1 py-0.5 rounded transition-colors max-w-xs"
             placeholder="Project Title"
           />
-          <Button
-            size="sm"
-            onClick={onOpenSourceModal}
-            className="text-xs bg-indigo-600 hover:bg-indigo-700 shadow-sm flex items-center justify-center font-semibold"
-          >
-            <Sparkles className="w-3.5 h-3.5 mr-1.5" />
-            Add Audio / YouTube
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleLoadDemo}
+              isLoading={isLoadingDemo}
+              className="text-xs border-purple-200 text-purple-700 hover:bg-purple-50 shadow-sm flex items-center font-medium"
+              title="Arrange an instant 3-track chill demo melody"
+            >
+              <Sparkles className="w-3.5 h-3.5 mr-1.5 text-purple-600" />
+              1-Click Demo
+            </Button>
+            <Button
+              size="sm"
+              onClick={onOpenSourceModal}
+              className="text-xs bg-indigo-600 hover:bg-indigo-700 shadow-sm flex items-center justify-center font-semibold"
+            >
+              <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+              Add Audio / YouTube
+            </Button>
+          </div>
         </div>
 
         {/* Row 2: Playback Transport, Undo/Redo & Actions (Fully Responsive) */}
         <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-slate-100">
-          {/* Playback & Undo/Redo cluster */}
-          <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Playback & Undo/Redo & Visualizer cluster */}
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
             <Button
               size="md"
               onClick={handleTogglePlay}
@@ -192,6 +229,21 @@ export function TransportBar({ onOpenProjects, onOpenSourceModal }: TransportBar
               title="Stop & Return to Start"
             >
               <Square className="w-3.5 h-3.5 fill-current" />
+            </Button>
+
+            {/* Loop Toggle Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={toggleLoop}
+              className={`h-9 w-9 p-0 transition-colors ${
+                isLooping
+                  ? 'bg-amber-50 border-amber-300 text-amber-600 hover:bg-amber-100'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+              title={isLooping ? 'Looping is ON (click to disable)' : 'Enable Continuous Looping'}
+            >
+              <Repeat className={`w-4 h-4 ${isLooping ? 'text-amber-600 stroke-[2.5]' : ''}`} />
             </Button>
 
             {/* Undo Button */}
@@ -229,10 +281,33 @@ export function TransportBar({ onOpenProjects, onOpenSourceModal }: TransportBar
               <span className="text-slate-600">/</span>
               <span className="text-slate-400">{formatTime(durationMs)}</span>
             </div>
+
+            {/* Master Real-time VU Visualizer */}
+            <MasterVisualizer />
           </div>
 
-          {/* Right Controls: Duration & Project Management */}
+          {/* Right Controls: Filter, Duration, Projects & Export */}
           <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 ml-auto">
+            {/* Master DJ Filter Toggle */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowFilterControl(!showFilterControl)}
+              className={`h-8 sm:h-9 px-2 text-xs flex items-center gap-1 ${
+                masterFilterFreq < 19000
+                  ? 'bg-indigo-50 border-indigo-300 text-indigo-700 font-semibold'
+                  : 'text-slate-600'
+              }`}
+              title="DJ Low-Pass Filter Effect"
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">DJ Filter</span>
+              {masterFilterFreq < 19000 && (
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-ping ml-0.5" />
+              )}
+            </Button>
+
+            {/* Master Length */}
             <select
               value={durationMs}
               onChange={(e) => setDurationMs(Number(e.target.value))}
@@ -269,17 +344,87 @@ export function TransportBar({ onOpenProjects, onOpenSourceModal }: TransportBar
               <span className="hidden sm:inline">Save</span>
             </Button>
 
-            <Button
-              size="sm"
-              onClick={handleExportMp3}
-              isLoading={isExporting}
-              className="text-xs h-8 sm:h-9 px-3 bg-emerald-600 hover:bg-emerald-700 shadow-sm text-white font-semibold flex items-center"
-            >
-              <Download className="w-3.5 h-3.5 mr-1" />
-              {isExporting ? `${exportProgress}%` : 'Export MP3'}
-            </Button>
+            {/* Export Format Selector */}
+            <div className="flex items-center rounded-lg border border-slate-300 overflow-hidden bg-white shadow-sm">
+              <select
+                value={exportFormat}
+                onChange={(e) => setExportFormat(e.target.value as AudioExportFormat)}
+                className="h-8 sm:h-9 px-2 text-[11px] sm:text-xs font-semibold bg-transparent border-r border-slate-200 outline-none cursor-pointer"
+                title="Select Export Quality & Audio Format"
+              >
+                <option value="mp3-192">MP3 192k</option>
+                <option value="mp3-320">MP3 320k (HD)</option>
+                <option value="wav">WAV Lossless</option>
+              </select>
+
+              <Button
+                size="sm"
+                onClick={handleExport}
+                isLoading={isExporting}
+                className="text-xs h-8 sm:h-9 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center rounded-none"
+              >
+                <Download className="w-3.5 h-3.5 mr-1" />
+                {isExporting ? `${exportProgress}%` : 'Export'}
+              </Button>
+            </div>
           </div>
         </div>
+
+        {/* Master DJ Filter Inline Drawer */}
+        {showFilterControl && (
+          <div className="p-2.5 sm:p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl flex flex-wrap items-center justify-between gap-3 animate-in fade-in slide-in-from-top-1 duration-150">
+            <div className="flex items-center gap-2">
+              <SlidersHorizontal className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+              <div>
+                <span className="text-xs font-bold text-indigo-950">Master DJ Low-Pass Filter</span>
+                <p className="text-[10px] text-indigo-700">Real-time sweep for club build-ups & drops</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 flex-1 max-w-sm">
+              <input
+                type="range"
+                min={200}
+                max={20000}
+                step={100}
+                value={masterFilterFreq}
+                onChange={(e) => setMasterFilterFreq(Number(e.target.value))}
+                className="w-full accent-indigo-600 h-1.5 bg-indigo-200 rounded-lg cursor-pointer"
+              />
+              <span className="font-mono text-xs font-bold text-indigo-900 w-16 text-right">
+                {masterFilterFreq >= 1000
+                  ? `${(masterFilterFreq / 1000).toFixed(1)} kHz`
+                  : `${Math.round(masterFilterFreq)} Hz`}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setMasterFilterFreq(800)}
+                className="px-2 py-0.5 text-[10px] bg-white border border-indigo-200 text-indigo-700 rounded-md font-semibold hover:bg-indigo-100"
+              >
+                Club Sub (800Hz)
+              </button>
+              <button
+                type="button"
+                onClick={() => setMasterFilterFreq(3000)}
+                className="px-2 py-0.5 text-[10px] bg-white border border-indigo-200 text-indigo-700 rounded-md font-semibold hover:bg-indigo-100"
+              >
+                Warm Mid (3kHz)
+              </button>
+              <button
+                type="button"
+                onClick={() => setMasterFilterFreq(20000)}
+                className="px-2 py-0.5 text-[10px] bg-white border border-indigo-200 text-indigo-700 rounded-md font-semibold hover:bg-indigo-100 flex items-center gap-0.5"
+                title="Reset filter to full spectrum"
+              >
+                <RotateCcw className="w-2.5 h-2.5" />
+                Reset (20kHz)
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Global Loading / Processing Alert */}
         {isProcessingAudio && (

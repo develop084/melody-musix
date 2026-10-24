@@ -66,6 +66,20 @@ interface StudioState {
   playMasterTimeline: () => void;
   stopMasterTimeline: () => void;
 
+  // Loop & Grid
+  isLooping: boolean;
+  toggleLoop: () => void;
+  snapToGrid: 'off' | '1/4' | '1/2' | '1';
+  setSnapToGrid: (snap: 'off' | '1/4' | '1/2' | '1') => void;
+
+  // Master Filter FX
+  masterFilterFreq: number;
+  setMasterFilterFreq: (freq: number) => void;
+
+  // Advanced Operations
+  duplicateClip: (trackId: string, clipId: string) => void;
+  loadDemoProject: () => Promise<void>;
+
   loadProject: (project: Project) => void;
   resetProject: () => void;
 }
@@ -352,11 +366,28 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   setCurrentTimeMs: (ms) => set({ currentTimeMs: ms }),
   setIsPlaying: (playing) => set({ isPlaying: playing }),
 
+  isLooping: false,
+  toggleLoop: () => set((s) => ({ isLooping: !s.isLooping })),
+
+  snapToGrid: '1/4',
+  setSnapToGrid: (snap) => set({ snapToGrid: snap }),
+
+  masterFilterFreq: 20000,
+  setMasterFilterFreq: (freq) => {
+    audioEngine.setMasterFilterFrequency(freq);
+    set({ masterFilterFreq: freq });
+  },
+
   playMasterTimeline: () => {
-    const { tracks, currentTimeMs, durationMs } = get();
+    const { tracks, currentTimeMs, durationMs, isLooping } = get();
     audioEngine.playTimeline(tracks, currentTimeMs, () => {
-      get().stopMasterTimeline();
-      set({ currentTimeMs: 0 });
+      if (get().isLooping) {
+        set({ currentTimeMs: 0 });
+        get().playMasterTimeline();
+      } else {
+        get().stopMasterTimeline();
+        set({ currentTimeMs: 0 });
+      }
     });
 
     playbackStartTimestamp = performance.now();
@@ -369,9 +400,16 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       const current = playbackInitialOffsetMs + elapsed;
 
       if (current >= durationMs) {
-        get().stopMasterTimeline();
-        set({ currentTimeMs: 0 });
-        return;
+        if (get().isLooping) {
+          get().stopMasterTimeline();
+          set({ currentTimeMs: 0 });
+          get().playMasterTimeline();
+          return;
+        } else {
+          get().stopMasterTimeline();
+          set({ currentTimeMs: 0 });
+          return;
+        }
       }
 
       set({ currentTimeMs: current });
@@ -388,6 +426,210 @@ export const useStudioStore = create<StudioState>((set, get) => ({
     }
     audioEngine.stopTimeline();
     set({ isPlaying: false });
+  },
+
+  duplicateClip: (trackId, clipId) => {
+    const { tracks, history, durationMs } = get();
+    const track = tracks.find((t) => t.id === trackId);
+    if (!track) return;
+    const clip = track.clips.find((c) => c.id === clipId);
+    if (!clip) return;
+
+    const newStart = Math.min(durationMs - clip.durationMs, clip.timelineStartMs + clip.durationMs);
+    const duplicatedClip: AudioClip = {
+      ...clip,
+      id: `clip_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      timelineStartMs: Math.max(0, newStart),
+    };
+
+    const updatedTracks = tracks.map((t) => {
+      if (t.id === trackId) {
+        return { ...t, clips: [...t.clips, duplicatedClip] };
+      }
+      return t;
+    });
+
+    const currentSnapshot = cloneTracks(tracks);
+    set({
+      tracks: updatedTracks,
+      history: [currentSnapshot, ...history].slice(0, 30),
+      future: [],
+      canUndo: true,
+      canRedo: false,
+    });
+  },
+
+  loadDemoProject: async () => {
+    const { history, tracks, setIsProcessingAudio } = get();
+    setIsProcessingAudio(true, '⚡ Loading instant demo melody...');
+
+    try {
+      const samples = [
+        {
+          id: 'sample-synth-lead',
+          url: '/api/v1/media/stream?videoId=sample-synth-lead',
+          title: 'Neon Dream - Synth Lead Riff',
+        },
+        {
+          id: 'sample-lofi-keys',
+          url: '/api/v1/media/stream?videoId=sample-lofi-keys',
+          title: 'Warm Vinyl - Lo-Fi Electric Keys',
+        },
+        {
+          id: 'sample-drums',
+          url: '/api/v1/media/stream?videoId=sample-drums',
+          title: 'Boom Bap - Vinyl Drums & Snare',
+        },
+      ];
+
+      await Promise.all(samples.map((s) => audioEngine.decodeAudioFromUrl(s.url)));
+
+      const demoTracks: Track[] = [
+        {
+          id: 'trk_01',
+          name: 'Lead Synth Riff',
+          volume: 0.95,
+          muted: false,
+          solo: false,
+          clips: [
+            {
+              id: 'demo_clip_1',
+              sourceUrl: samples[0].url,
+              sourceTitle: samples[0].title,
+              startOffsetMs: 0,
+              durationMs: 6000,
+              timelineStartMs: 0,
+              fadeInMs: 100,
+              fadeOutMs: 150,
+              volume: 1.0,
+            },
+            {
+              id: 'demo_clip_2',
+              sourceUrl: samples[0].url,
+              sourceTitle: samples[0].title,
+              startOffsetMs: 0,
+              durationMs: 6000,
+              timelineStartMs: 6000,
+              fadeInMs: 100,
+              fadeOutMs: 150,
+              volume: 1.0,
+            },
+            {
+              id: 'demo_clip_3',
+              sourceUrl: samples[0].url,
+              sourceTitle: samples[0].title,
+              startOffsetMs: 0,
+              durationMs: 6000,
+              timelineStartMs: 12000,
+              fadeInMs: 100,
+              fadeOutMs: 150,
+              volume: 1.0,
+            },
+          ],
+        },
+        {
+          id: 'trk_02',
+          name: 'Lo-Fi Keys Harmony',
+          volume: 0.85,
+          muted: false,
+          solo: false,
+          clips: [
+            {
+              id: 'demo_clip_4',
+              sourceUrl: samples[1].url,
+              sourceTitle: samples[1].title,
+              startOffsetMs: 0,
+              durationMs: 8000,
+              timelineStartMs: 0,
+              fadeInMs: 200,
+              fadeOutMs: 200,
+              volume: 1.0,
+            },
+            {
+              id: 'demo_clip_5',
+              sourceUrl: samples[1].url,
+              sourceTitle: samples[1].title,
+              startOffsetMs: 0,
+              durationMs: 8000,
+              timelineStartMs: 8000,
+              fadeInMs: 200,
+              fadeOutMs: 200,
+              volume: 1.0,
+            },
+          ],
+        },
+        {
+          id: 'trk_03',
+          name: 'Boom Bap Beats',
+          volume: 1.0,
+          muted: false,
+          solo: false,
+          clips: [
+            {
+              id: 'demo_clip_6',
+              sourceUrl: samples[2].url,
+              sourceTitle: samples[2].title,
+              startOffsetMs: 0,
+              durationMs: 4000,
+              timelineStartMs: 0,
+              fadeInMs: 50,
+              fadeOutMs: 50,
+              volume: 1.0,
+            },
+            {
+              id: 'demo_clip_7',
+              sourceUrl: samples[2].url,
+              sourceTitle: samples[2].title,
+              startOffsetMs: 0,
+              durationMs: 4000,
+              timelineStartMs: 4000,
+              fadeInMs: 50,
+              fadeOutMs: 50,
+              volume: 1.0,
+            },
+            {
+              id: 'demo_clip_8',
+              sourceUrl: samples[2].url,
+              sourceTitle: samples[2].title,
+              startOffsetMs: 0,
+              durationMs: 4000,
+              timelineStartMs: 8000,
+              fadeInMs: 50,
+              fadeOutMs: 50,
+              volume: 1.0,
+            },
+            {
+              id: 'demo_clip_9',
+              sourceUrl: samples[2].url,
+              sourceTitle: samples[2].title,
+              startOffsetMs: 0,
+              durationMs: 4000,
+              timelineStartMs: 12000,
+              fadeInMs: 50,
+              fadeOutMs: 50,
+              volume: 1.0,
+            },
+          ],
+        },
+      ];
+
+      const currentSnapshot = cloneTracks(tracks);
+      set({
+        projectTitle: 'Demo Neon Chill Medley',
+        tracks: demoTracks,
+        durationMs: 20000,
+        currentTimeMs: 0,
+        isLooping: true,
+        history: [currentSnapshot, ...history].slice(0, 30),
+        future: [],
+        canUndo: true,
+        canRedo: false,
+      });
+    } catch (err) {
+      console.warn('Failed to load demo medley:', err);
+    } finally {
+      setIsProcessingAudio(false);
+    }
   },
 
   loadProject: (project) => {
