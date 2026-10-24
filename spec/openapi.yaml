@@ -1,0 +1,455 @@
+openapi: 3.1.0
+info:
+  title: Spec-Driven Scalable Core API
+  version: 1.0.0
+  description: |
+    Production-ready, minimal yet scalable API blueprint featuring JWT authentication,
+    refresh token rotation, role-based access control (RBAC), and user management.
+servers:
+  - url: http://localhost:4000
+    description: Local development server
+
+paths:
+  /api/v1/health:
+    get:
+      summary: Health check endpoint
+      description: Returns the operational status and uptime of the backend service.
+      tags:
+        - System
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /api/v1/auth/register:
+    post:
+      summary: Register a new user
+      description: Creates a user account with hashed password and generates initial authentication tokens.
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /api/v1/auth/login:
+    post:
+      summary: Authenticate with email & password
+      description: Validates user credentials and issues a short-lived access token and refresh token.
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authenticated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/auth/refresh:
+    post:
+      summary: Refresh authentication tokens
+      description: Validates the refresh token, performs token rotation, and returns a new access & refresh token pair.
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: Tokens refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshTokenResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/auth/me:
+    get:
+      summary: Get currently authenticated user profile
+      description: Retrieves the profile, role, and resolved permissions of the token owner.
+      tags:
+        - Authentication
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/users:
+    get:
+      summary: List all users (RBAC Protected)
+      description: Returns all users in the system. Requires ADMIN or MANAGER role with 'users:read' permission.
+      tags:
+        - User Management
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/v1/users/{id}/role:
+    patch:
+      summary: "Update user role (RBAC Protected: Admin Only)"
+      description: Modifies the role assigned to a specific user. Requires ADMIN role with 'users:write' permission.
+      tags:
+        - User Management
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID of user to update
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRoleRequest'
+      responses:
+        '200':
+          description: User role updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/dashboard/stats:
+    get:
+      summary: Get dashboard statistics (RBAC Scoped)
+      description: Returns overview metrics and role distribution. Available to all authenticated users.
+      tags:
+        - Dashboard
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Dashboard statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardStats'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Short-lived JSON Web Token (Access Token).
+
+  schemas:
+    Role:
+      type: string
+      enum:
+        - ADMIN
+        - MANAGER
+        - USER
+      description: Assigned system role determining baseline permissions.
+
+    User:
+      type: object
+      required:
+        - id
+        - email
+        - name
+        - role
+        - permissions
+        - createdAt
+      properties:
+        id:
+          type: string
+          example: "usr_clx923kjs001"
+        email:
+          type: string
+          format: email
+          example: "alex@example.com"
+        name:
+          type: string
+          example: "Alex Mercer"
+        role:
+          $ref: '#/components/schemas/Role'
+        permissions:
+          type: array
+          items:
+            type: string
+          example: ["users:read", "analytics:read"]
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-10-24T12:00:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2026-10-24T12:30:00Z"
+
+    RegisterRequest:
+      type: object
+      required:
+        - name
+        - email
+        - password
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 60
+          example: "Alex Mercer"
+        email:
+          type: string
+          format: email
+          example: "alex@example.com"
+        password:
+          type: string
+          minLength: 8
+          maxLength: 100
+          example: "StrongPass123!"
+        role:
+          $ref: '#/components/schemas/Role'
+          default: USER
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: "alex@example.com"
+        password:
+          type: string
+          example: "StrongPass123!"
+
+    AuthResponse:
+      type: object
+      required:
+        - accessToken
+        - refreshToken
+        - user
+      properties:
+        accessToken:
+          type: string
+          description: Short-lived JWT (15 minutes).
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        refreshToken:
+          type: string
+          description: Long-lived opaque or JWT refresh token (7 days).
+          example: "rf_01j982a7924k876..."
+        user:
+          $ref: '#/components/schemas/User'
+
+    RefreshTokenRequest:
+      type: object
+      required:
+        - refreshToken
+      properties:
+        refreshToken:
+          type: string
+          example: "rf_01j982a7924k876..."
+
+    RefreshTokenResponse:
+      type: object
+      required:
+        - accessToken
+        - refreshToken
+      properties:
+        accessToken:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        refreshToken:
+          type: string
+          example: "rf_01j982a7924k876..."
+
+    UpdateUserRoleRequest:
+      type: object
+      required:
+        - role
+      properties:
+        role:
+          $ref: '#/components/schemas/Role'
+
+    DashboardStats:
+      type: object
+      required:
+        - totalUsers
+        - activeUsers
+        - roleDistribution
+        - serverUptime
+        - systemStatus
+      properties:
+        totalUsers:
+          type: integer
+          example: 42
+        activeUsers:
+          type: integer
+          example: 18
+        roleDistribution:
+          type: object
+          properties:
+            ADMIN:
+              type: integer
+              example: 2
+            MANAGER:
+              type: integer
+              example: 5
+            USER:
+              type: integer
+              example: 35
+        serverUptime:
+          type: string
+          example: "99.98%"
+        systemStatus:
+          type: string
+          example: "OPTIMAL"
+
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - timestamp
+        - uptimeSeconds
+        - environment
+      properties:
+        status:
+          type: string
+          example: "ok"
+        timestamp:
+          type: string
+          format: date-time
+        uptimeSeconds:
+          type: number
+          example: 124.5
+        environment:
+          type: string
+          example: "development"
+
+    ErrorDetail:
+      type: object
+      required:
+        - field
+        - message
+      properties:
+        field:
+          type: string
+          example: "email"
+        message:
+          type: string
+          example: "Invalid email format"
+
+    ErrorResponse:
+      type: object
+      required:
+        - status
+        - message
+        - timestamp
+      properties:
+        status:
+          type: integer
+          example: 400
+        message:
+          type: string
+          example: "Validation Error"
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        timestamp:
+          type: string
+          format: date-time
+
+  responses:
+    BadRequestError:
+      description: Malformed request payload or validation failure.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    UnauthorizedError:
+      description: Authentication credentials are missing or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    ForbiddenError:
+      description: User lacks sufficient role or permission to access this resource.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    NotFoundError:
+      description: The requested resource was not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    ConflictError:
+      description: Resource conflict, such as email already registered.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
