@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   ShieldCheck,
   RefreshCw,
+  Music,
 } from 'lucide-react';
 
 export function DashboardPage() {
@@ -55,13 +56,19 @@ export function DashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <Link to="/studio">
+            <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-600/20 font-bold">
+              <Music className="h-4 w-4 mr-1.5" />
+              Open Melody Studio
+            </Button>
+          </Link>
           <Button variant="outline" size="sm" onClick={fetchStats} isLoading={isLoading}>
             <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-            Refresh Metrics
+            Refresh
           </Button>
           {(user?.role === 'ADMIN' || user?.role === 'MANAGER') && (
             <Link to="/users">
-              <Button size="sm">
+              <Button variant="outline" size="sm">
                 <ShieldCheck className="h-3.5 w-3.5 mr-1.5" />
                 Manage Users
               </Button>

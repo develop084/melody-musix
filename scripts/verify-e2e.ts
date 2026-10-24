@@ -137,7 +137,87 @@ async function runTests() {
     assert(typeof statsJson.totalUsers === 'number', 'Stats returns totalUsers count');
     assert(statsJson.systemStatus === 'OPTIMAL', 'Stats returns systemStatus OPTIMAL');
 
-    console.log('\n🎉 ALL 10 END-TO-END SPEC & RBAC TESTS PASSED SUCCESSFULLY!\n');
+    // 11. Media Samples
+    console.log('\n--- 11. Media: Royalty-Free Samples ---');
+    const samplesRes = await fetch(`${baseUrl}/media/samples`);
+    const samplesJson = await samplesRes.json();
+    assert(samplesRes.status === 200 && Array.isArray(samplesJson), 'GET /api/v1/media/samples returns 200 OK array');
+    assert(samplesJson.length >= 5, 'Built-in sample presets contain at least 5 studio tracks');
+
+    // 12. Media Stream: Audio Streaming with Range support
+    console.log('\n--- 12. Media: Audio Streaming ---');
+    const streamRes = await fetch(`${baseUrl}/media/stream?videoId=sample-synth-lead`);
+    assert(streamRes.status === 200, 'GET /api/v1/media/stream returns 200 OK');
+    assert(streamRes.headers.get('content-type')?.includes('audio'), 'Stream returns audio content-type header');
+    assert(streamRes.headers.get('access-control-allow-origin') === '*', 'Stream has Access-Control-Allow-Origin: * for Web Audio');
+
+    // 13. Projects: Create Medley Project
+    console.log('\n--- 13. Projects: Create Medley Project ---');
+    const newProjectPayload = {
+      title: 'E2E Sunset Medley',
+      bpm: 128,
+      durationMs: 30000,
+      tracks: [
+        {
+          id: 'trk_01',
+          name: 'Lead Synth',
+          volume: 1.0,
+          muted: false,
+          solo: false,
+          clips: [
+            {
+              id: 'clip_01',
+              sourceUrl: '/api/v1/media/stream?videoId=sample-synth-lead',
+              sourceTitle: 'Neon Dream - Synth Lead',
+              startOffsetMs: 0,
+              durationMs: 6000,
+              timelineStartMs: 0,
+              fadeInMs: 150,
+              fadeOutMs: 150,
+              volume: 1.0,
+            },
+          ],
+        },
+      ],
+    };
+    const createProjRes = await fetch(`${baseUrl}/projects`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${refreshJson.accessToken}`,
+      },
+      body: JSON.stringify(newProjectPayload),
+    });
+    const createProjJson = await createProjRes.json();
+    assert(createProjRes.status === 201, 'POST /api/v1/projects returns 201 Created');
+    assert(createProjJson.title === 'E2E Sunset Medley', 'Saved project retains correct title');
+    assert(createProjJson.tracks.length === 1, 'Saved project contains 1 track');
+    const savedProjectId = createProjJson.id;
+
+    // 14. Projects: List and Get By ID
+    console.log('\n--- 14. Projects: List and Read ---');
+    const listProjRes = await fetch(`${baseUrl}/projects`, {
+      headers: { Authorization: `Bearer ${refreshJson.accessToken}` },
+    });
+    const listProjJson = await listProjRes.json();
+    assert(listProjRes.status === 200 && Array.isArray(listProjJson), 'GET /api/v1/projects returns 200 OK array');
+    assert(listProjJson.some((p: any) => p.id === savedProjectId), 'Project list contains newly created project');
+
+    const getProjRes = await fetch(`${baseUrl}/projects/${savedProjectId}`, {
+      headers: { Authorization: `Bearer ${refreshJson.accessToken}` },
+    });
+    const getProjJson = await getProjRes.json();
+    assert(getProjRes.status === 200 && getProjJson.id === savedProjectId, 'GET /api/v1/projects/:id returns project details');
+
+    // 15. Projects: Delete
+    console.log('\n--- 15. Projects: Delete ---');
+    const delProjRes = await fetch(`${baseUrl}/projects/${savedProjectId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${refreshJson.accessToken}` },
+    });
+    assert(delProjRes.status === 204, 'DELETE /api/v1/projects/:id returns 204 No Content');
+
+    console.log('\n🎉 ALL 15 END-TO-END SPEC, MEDIA, AND RBAC TESTS PASSED SUCCESSFULLY!\n');
   } finally {
     server.close();
     await prisma.$disconnect();

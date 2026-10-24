@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
-import { LogOut, BookOpen, Layers, ShieldCheck } from 'lucide-react';
+import { LogOut, BookOpen, Layers, ShieldCheck, Music } from 'lucide-react';
 
 export function Navbar() {
   const { user, logout } = useAuthStore();
@@ -29,11 +29,19 @@ export function Navbar() {
           </Link>
 
           <nav className="hidden md:flex items-center gap-1">
+
             <Link
               to="/"
               className="px-3 py-1.5 text-sm font-medium text-slate-700 hover:text-blue-600 hover:bg-slate-50 rounded-lg transition-colors"
             >
               Dashboard
+            </Link>
+            <Link
+              to="/studio"
+              className="px-3 py-1.5 text-sm font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors flex items-center gap-1.5"
+            >
+              <Music className="h-4 w-4 text-indigo-600" />
+              Melody Studio
             </Link>
             {(user?.role === 'ADMIN' || user?.role === 'MANAGER') && (
               <Link

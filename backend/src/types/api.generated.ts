@@ -172,6 +172,155 @@ export interface paths {
       };
     };
   };
+  "/api/v1/media/search": {
+    /**
+     * Search tracks from YouTube
+     * @description Searches YouTube for songs and audio tracks without needing an API key.
+     */
+    get: {
+      parameters: {
+        query: {
+          /** @description Search term or video title */
+          q: string;
+        };
+      };
+      responses: {
+        /** @description Search results */
+        200: {
+          content: {
+            "application/json": components["schemas"]["MediaTrack"][];
+          };
+        };
+        400: components["responses"]["BadRequestError"];
+      };
+    };
+  };
+  "/api/v1/media/stream": {
+    /**
+     * Stream audio with CORS headers
+     * @description Fetches and proxies an audio stream for Web Audio decoding with Byte-Range support.
+     */
+    get: {
+      parameters: {
+        query: {
+          /** @description YouTube video ID or URL */
+          videoId: string;
+        };
+      };
+      responses: {
+        /** @description Audio stream */
+        200: {
+          content: {
+            "audio/webm": unknown;
+            "audio/mp4": unknown;
+            "audio/mpeg": unknown;
+          };
+        };
+        /** @description Partial content audio stream */
+        206: {
+          content: never;
+        };
+        400: components["responses"]["BadRequestError"];
+        404: components["responses"]["NotFoundError"];
+      };
+    };
+  };
+  "/api/v1/media/samples": {
+    /**
+     * List royalty-free melody and loop samples
+     * @description Returns built-in audio samples (beats, synths, acoustic riffs) for immediate browser-based composition.
+     */
+    get: {
+      responses: {
+        /** @description List of sample tracks */
+        200: {
+          content: {
+            "application/json": components["schemas"]["MediaTrack"][];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/projects": {
+    /**
+     * List user medley projects
+     * @description Retrieves all saved audio timeline projects for the authenticated user.
+     */
+    get: {
+      responses: {
+        /** @description List of user projects */
+        200: {
+          content: {
+            "application/json": components["schemas"]["Project"][];
+          };
+        };
+        401: components["responses"]["UnauthorizedError"];
+      };
+    };
+    /**
+     * Create or save medley project
+     * @description Stores a project containing multi-track timeline data, clips, and audio references.
+     */
+    post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["CreateProjectRequest"];
+        };
+      };
+      responses: {
+        /** @description Project saved successfully */
+        201: {
+          content: {
+            "application/json": components["schemas"]["Project"];
+          };
+        };
+        400: components["responses"]["BadRequestError"];
+        401: components["responses"]["UnauthorizedError"];
+      };
+    };
+  };
+  "/api/v1/projects/{id}": {
+    /**
+     * Get medley project by ID
+     * @description Fetches complete project timeline and track data.
+     */
+    get: {
+      parameters: {
+        path: {
+          id: string;
+        };
+      };
+      responses: {
+        /** @description Project retrieved */
+        200: {
+          content: {
+            "application/json": components["schemas"]["Project"];
+          };
+        };
+        401: components["responses"]["UnauthorizedError"];
+        404: components["responses"]["NotFoundError"];
+      };
+    };
+    /**
+     * Delete a medley project
+     * @description Deletes an existing project owned by the user.
+     */
+    delete: {
+      parameters: {
+        path: {
+          id: string;
+        };
+      };
+      responses: {
+        /** @description Project successfully deleted */
+        204: {
+          content: never;
+        };
+        401: components["responses"]["UnauthorizedError"];
+        404: components["responses"]["NotFoundError"];
+      };
+    };
+  };
 }
 
 export type webhooks = Record<string, never>;
@@ -300,8 +449,97 @@ export interface components {
       /** @example Validation Error */
       message: string;
       errors?: components["schemas"]["ErrorDetail"][];
+    };
+    MediaTrack: {
+      /** @example dQw4w9WgXcQ */
+      id: string;
+      /** @example Never Gonna Give You Up */
+      title: string;
+      /** @example https://www.youtube.com/watch?v=dQw4w9WgXcQ */
+      url: string;
+      /** @example 3:33 */
+      duration: string;
+      /** @example https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg */
+      thumbnail?: string;
+      /** @example Rick Astley */
+      author?: string;
+    };
+    AudioClip: {
+      /** @example clip_01 */
+      id: string;
+      /** @example /api/v1/media/stream?videoId=dQw4w9WgXcQ */
+      sourceUrl: string;
+      /** @example Lead Synth Melody */
+      sourceTitle: string;
+      /** @example 15000 */
+      startOffsetMs: number;
+      /** @example 8000 */
+      durationMs: number;
+      /** @example 0 */
+      timelineStartMs: number;
+      /**
+       * @default 150
+       * @example 150
+       */
+      fadeInMs?: number;
+      /**
+       * @default 150
+       * @example 150
+       */
+      fadeOutMs?: number;
+      /**
+       * @default 1
+       * @example 1
+       */
+      volume: number;
+    };
+    Track: {
+      /** @example trk_01 */
+      id: string;
+      /** @example Track 1 */
+      name: string;
+      /**
+       * @default 1
+       * @example 1
+       */
+      volume: number;
+      /** @default false */
+      muted: boolean;
+      /** @default false */
+      solo: boolean;
+      clips: components["schemas"]["AudioClip"][];
+    };
+    Project: {
+      /** @example proj_982kjs1 */
+      id: string;
+      /** @example Summer Sunset Medley */
+      title: string;
+      /** @example 120 */
+      bpm: number;
+      /** @example 60000 */
+      durationMs: number;
+      tracks: components["schemas"]["Track"][];
+      /** @example usr_clx923kjs001 */
+      userId: string;
       /** Format: date-time */
-      timestamp: string;
+      createdAt: string;
+      /** Format: date-time */
+      updatedAt: string;
+    };
+    CreateProjectRequest: {
+      /** @example Summer Sunset Medley */
+      title: string;
+      /**
+       * @default 120
+       * @example 120
+       */
+      bpm: number;
+      /**
+       * @default 60000
+       * @example 60000
+       */
+      durationMs: number;
+      tracks: components["schemas"]["Track"][];
     };
   };
   responses: {

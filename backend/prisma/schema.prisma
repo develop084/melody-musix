@@ -17,6 +17,7 @@ model User {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   refreshTokens RefreshToken[]
+  projects      Project[]
 }
 
 model RefreshToken {
@@ -27,6 +28,20 @@ model RefreshToken {
   revoked   Boolean  @default(false)
   expiresAt DateTime
   createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Project {
+  id         String   @id @default(uuid())
+  title      String
+  bpm        Int      @default(120)
+  durationMs Int      @default(60000)
+  tracksJson String   @default("[]")
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@index([userId])
 }

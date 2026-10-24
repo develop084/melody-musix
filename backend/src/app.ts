@@ -9,6 +9,8 @@ import { env } from './config/env';
 import { authRouter } from './modules/auth/auth.routes';
 import { userRouter } from './modules/users/user.routes';
 import { dashboardRouter } from './modules/dashboard/dashboard.routes';
+import { mediaRouter } from './modules/media/media.routes';
+import { projectRouter } from './modules/projects/project.routes';
 import { errorHandler } from './middleware/error.middleware';
 import { NotFoundError } from './utils/errors';
 
@@ -22,7 +24,7 @@ export function createApp() {
       origin: env.CORS_ORIGIN,
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'Range'],
     })
   );
   app.use(express.json());
@@ -51,6 +53,8 @@ export function createApp() {
   app.use('/api/v1/auth', authRouter);
   app.use('/api/v1/users', userRouter);
   app.use('/api/v1/dashboard', dashboardRouter);
+  app.use('/api/v1/media', mediaRouter);
+  app.use('/api/v1/projects', projectRouter);
 
   // 404 Catch-All
   app.use((_req: Request, _res: Response, next) => {

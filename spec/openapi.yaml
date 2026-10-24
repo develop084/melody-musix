@@ -189,6 +189,165 @@ paths:
         '401':
           $ref: '#/components/responses/UnauthorizedError'
 
+  /api/v1/media/search:
+    get:
+      summary: Search tracks from YouTube
+      description: Searches YouTube for songs and audio tracks without needing an API key.
+      tags:
+        - Media
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Search term or video title
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MediaTrack'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+
+  /api/v1/media/stream:
+    get:
+      summary: Stream audio with CORS headers
+      description: Fetches and proxies an audio stream for Web Audio decoding with Byte-Range support.
+      tags:
+        - Media
+      parameters:
+        - name: videoId
+          in: query
+          required: true
+          description: YouTube video ID or URL
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Audio stream
+          content:
+            audio/webm: {}
+            audio/mp4: {}
+            audio/mpeg: {}
+        '206':
+          description: Partial content audio stream
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/media/samples:
+    get:
+      summary: List royalty-free melody and loop samples
+      description: Returns built-in audio samples (beats, synths, acoustic riffs) for immediate browser-based composition.
+      tags:
+        - Media
+      responses:
+        '200':
+          description: List of sample tracks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MediaTrack'
+
+  /api/v1/projects:
+    get:
+      summary: List user medley projects
+      description: Retrieves all saved audio timeline projects for the authenticated user.
+      tags:
+        - Projects
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of user projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Project'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    post:
+      summary: Create or save medley project
+      description: Stores a project containing multi-track timeline data, clips, and audio references.
+      tags:
+        - Projects
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProjectRequest'
+      responses:
+        '201':
+          description: Project saved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/projects/{id}:
+    get:
+      summary: Get medley project by ID
+      description: Fetches complete project timeline and track data.
+      tags:
+        - Projects
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Project retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    delete:
+      summary: Delete a medley project
+      description: Deletes an existing project owned by the user.
+      tags:
+        - Projects
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Project successfully deleted
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
 components:
   securitySchemes:
     BearerAuth:
@@ -414,9 +573,169 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ErrorDetail'
-        timestamp:
+    MediaTrack:
+      type: object
+      required:
+        - id
+        - title
+        - url
+        - duration
+      properties:
+        id:
+          type: string
+          example: "dQw4w9WgXcQ"
+        title:
+          type: string
+          example: "Never Gonna Give You Up"
+        url:
+          type: string
+          example: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        duration:
+          type: string
+          example: "3:33"
+        thumbnail:
+          type: string
+          example: "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg"
+        author:
+          type: string
+          example: "Rick Astley"
+
+    AudioClip:
+      type: object
+      required:
+        - id
+        - sourceUrl
+        - sourceTitle
+        - startOffsetMs
+        - durationMs
+        - timelineStartMs
+        - volume
+      properties:
+        id:
+          type: string
+          example: "clip_01"
+        sourceUrl:
+          type: string
+          example: "/api/v1/media/stream?videoId=dQw4w9WgXcQ"
+        sourceTitle:
+          type: string
+          example: "Lead Synth Melody"
+        startOffsetMs:
+          type: number
+          example: 15000
+        durationMs:
+          type: number
+          example: 8000
+        timelineStartMs:
+          type: number
+          example: 0
+        fadeInMs:
+          type: number
+          default: 150
+          example: 150
+        fadeOutMs:
+          type: number
+          default: 150
+          example: 150
+        volume:
+          type: number
+          default: 1.0
+          example: 1.0
+
+    Track:
+      type: object
+      required:
+        - id
+        - name
+        - volume
+        - muted
+        - solo
+        - clips
+      properties:
+        id:
+          type: string
+          example: "trk_01"
+        name:
+          type: string
+          example: "Track 1"
+        volume:
+          type: number
+          default: 1.0
+          example: 1.0
+        muted:
+          type: boolean
+          default: false
+        solo:
+          type: boolean
+          default: false
+        clips:
+          type: array
+          items:
+            $ref: '#/components/schemas/AudioClip'
+
+    Project:
+      type: object
+      required:
+        - id
+        - title
+        - bpm
+        - durationMs
+        - tracks
+        - userId
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          example: "proj_982kjs1"
+        title:
+          type: string
+          example: "Summer Sunset Medley"
+        bpm:
+          type: number
+          example: 120
+        durationMs:
+          type: number
+          example: 60000
+        tracks:
+          type: array
+          items:
+            $ref: '#/components/schemas/Track'
+        userId:
+          type: string
+          example: "usr_clx923kjs001"
+        createdAt:
           type: string
           format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateProjectRequest:
+      type: object
+      required:
+        - title
+        - bpm
+        - durationMs
+        - tracks
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "Summer Sunset Medley"
+        bpm:
+          type: number
+          default: 120
+          example: 120
+        durationMs:
+          type: number
+          default: 60000
+          example: 60000
+        tracks:
+          type: array
+          items:
+            $ref: '#/components/schemas/Track'
 
   responses:
     BadRequestError:

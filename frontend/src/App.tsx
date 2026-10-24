@@ -6,6 +6,7 @@ import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { UsersPage } from './pages/UsersPage';
+import { StudioPage } from './pages/StudioPage';
 import { UnauthorizedPage } from './pages/UnauthorizedPage';
 
 export function App() {
@@ -25,6 +26,7 @@ export function App() {
           }
         >
           <Route index element={<DashboardPage />} />
+          <Route path="/studio" element={<StudioPage />} />
           <Route
             path="/users"
             element={

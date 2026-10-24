@@ -12,6 +12,7 @@
     "db:studio": "prisma studio"
   },
   "dependencies": {
+    "@distube/ytdl-core": "^4.16.12",
     "@prisma/client": "^5.15.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
@@ -21,6 +22,7 @@
     "jsonwebtoken": "^9.0.2",
     "swagger-ui-express": "^5.0.1",
     "yamljs": "^0.3.0",
+    "ytsr": "^3.8.4",
     "zod": "^3.23.8"
   },
   "devDependencies": {
