@@ -25,63 +25,58 @@ export interface WaveformTrimmerProps {
 const QUICK_SAMPLES = [
   {
     id: 'sample-synth-lead',
-    title: 'Neon Dream',
-    subtitle: 'Lead Synth Riff',
+    title: 'Neon Poly Lead',
+    category: 'SYNTH LEAD',
+    key: 'F# min',
     bpm: '120 BPM',
-    icon: '🎹',
     url: '/api/v1/media/stream?videoId=sample-synth-lead',
     duration: '0:06',
-    border: 'border-blue-200 hover:border-blue-400 bg-blue-50/50',
-    badge: 'bg-blue-100 text-blue-700',
-    btn: 'bg-blue-600 hover:bg-blue-700 text-white',
+    badge: 'bg-cyan-950/70 text-cyan-300 border border-cyan-800/60',
+    btn: 'bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold',
   },
   {
     id: 'sample-lofi-keys',
-    title: 'Lo-Fi Rhodes',
-    subtitle: 'Electric Piano Chords',
+    title: 'Vintage Rhodes MkII',
+    category: 'KEYS / CHORDS',
+    key: 'C min',
     bpm: '85 BPM',
-    icon: '🎸',
     url: '/api/v1/media/stream?videoId=sample-lofi-keys',
     duration: '0:08',
-    border: 'border-purple-200 hover:border-purple-400 bg-purple-50/50',
-    badge: 'bg-purple-100 text-purple-700',
-    btn: 'bg-purple-600 hover:bg-purple-700 text-white',
+    badge: 'bg-violet-950/70 text-violet-300 border border-violet-800/60',
+    btn: 'bg-violet-600 hover:bg-violet-500 text-white font-semibold',
   },
   {
     id: 'sample-drums',
-    title: 'Boom Bap',
-    subtitle: 'Vinyl Drums & Beat',
+    title: 'Vinyl Breakbeat 1974',
+    category: 'DRUM BREAK',
+    key: 'Acoustic Kit',
     bpm: '90 BPM',
-    icon: '🥁',
     url: '/api/v1/media/stream?videoId=sample-drums',
     duration: '0:04',
-    border: 'border-amber-200 hover:border-amber-400 bg-amber-50/50',
-    badge: 'bg-amber-100 text-amber-700',
-    btn: 'bg-amber-600 hover:bg-amber-700 text-white',
+    badge: 'bg-amber-950/70 text-amber-300 border border-amber-800/60',
+    btn: 'bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold',
   },
   {
     id: 'sample-acoustic',
-    title: 'Sunset Guitar',
-    subtitle: 'Nylon Acoustic Chords',
+    title: 'Warm Nylon Arp',
+    category: 'ACOUSTIC GUITAR',
+    key: 'E min',
     bpm: '110 BPM',
-    icon: '🌊',
     url: '/api/v1/media/stream?videoId=sample-acoustic',
     duration: '0:08',
-    border: 'border-emerald-200 hover:border-emerald-400 bg-emerald-50/50',
-    badge: 'bg-emerald-100 text-emerald-700',
-    btn: 'bg-emerald-600 hover:bg-emerald-700 text-white',
+    badge: 'bg-emerald-950/70 text-emerald-300 border border-emerald-800/60',
+    btn: 'bg-emerald-600 hover:bg-emerald-500 text-white font-semibold',
   },
   {
     id: 'sample-bass-groove',
-    title: 'Midnight Funk',
-    subtitle: 'Deep Bassline Riff',
+    title: 'Analog Sub Funk',
+    category: 'SUB BASS',
+    key: 'D min',
     bpm: '115 BPM',
-    icon: '🎷',
     url: '/api/v1/media/stream?videoId=sample-bass-groove',
     duration: '0:04',
-    border: 'border-rose-200 hover:border-rose-400 bg-rose-50/50',
-    badge: 'bg-rose-100 text-rose-700',
-    btn: 'bg-rose-600 hover:bg-rose-700 text-white',
+    badge: 'bg-rose-950/70 text-rose-300 border border-rose-800/60',
+    btn: 'bg-rose-600 hover:bg-rose-500 text-white font-semibold',
   },
 ];
 
@@ -173,13 +168,17 @@ export function WaveformTrimmer({ onOpenSourceModal }: WaveformTrimmerProps) {
     const step = Math.ceil(channelData.length / width);
     const amp = height / 2;
 
+    // Background dark chassis
+    ctx.fillStyle = '#090b10';
+    ctx.fillRect(0, 0, width, height);
+
     const inRatio = trimStartMs / totalDurationMs;
     const outRatio = trimEndMs / totalDurationMs;
     const inPx = inRatio * width;
     const outPx = outRatio * width;
 
     // Draw active snippet highlight background
-    ctx.fillStyle = 'rgba(59, 130, 246, 0.12)';
+    ctx.fillStyle = 'rgba(6, 182, 212, 0.16)';
     ctx.fillRect(inPx, 0, Math.max(2, outPx - inPx), height);
 
     // Draw waveform bars
@@ -194,7 +193,7 @@ export function WaveformTrimmer({ onOpenSourceModal }: WaveformTrimmerProps) {
       }
 
       const isInsideTrim = i >= inPx && i <= outPx;
-      ctx.strokeStyle = isInsideTrim ? '#2563eb' : '#94a3b8';
+      ctx.strokeStyle = isInsideTrim ? '#22d3ee' : '#334155';
 
       ctx.beginPath();
       ctx.moveTo(i, (1 + min) * amp);
@@ -203,17 +202,17 @@ export function WaveformTrimmer({ onOpenSourceModal }: WaveformTrimmerProps) {
     }
 
     // Draw Trim Boundary In/Out Lines
-    ctx.fillStyle = '#1d4ed8';
-    ctx.fillRect(inPx - 1, 0, 3, height);
-    ctx.fillRect(outPx - 1, 0, 3, height);
+    ctx.fillStyle = '#06b6d4';
+    ctx.fillRect(inPx - 1, 0, 2.5, height);
+    ctx.fillRect(outPx - 1, 0, 2.5, height);
 
     // Draw Live Playhead when preview snippet is playing
     if (snippetPlaybackMs !== null) {
       const playheadRatio = Math.max(0, Math.min(1, snippetPlaybackMs / totalDurationMs));
       const playheadPx = playheadRatio * width;
 
-      // Bright red playhead line
-      ctx.fillStyle = '#ef4444';
+      // Bright amber playhead line
+      ctx.fillStyle = '#f59e0b';
       ctx.fillRect(playheadPx - 1, 0, 2.5, height);
 
       // Playhead top triangle indicator
@@ -319,25 +318,27 @@ export function WaveformTrimmer({ onOpenSourceModal }: WaveformTrimmerProps) {
     setTimeout(() => setToastMsg(null), 3500);
   };
 
-  // State 1: When no song is loaded in trimmer, show the interactive Quick Melody Deck
+  // State 1: When no song is loaded in trimmer, show the interactive Sound Vault & Sampler
   if (!sourceTrackInfo || !sourceAudioBuffer) {
     return (
-      <Card className="border-slate-200 shadow-sm bg-white overflow-hidden">
+      <Card className="border-slate-800 bg-[#12151e] shadow-xl overflow-hidden text-slate-100">
         {/* Header with Title & Quick YouTube Search Bar */}
-        <div className="p-3 sm:p-4 bg-gradient-to-r from-indigo-50/70 via-blue-50/40 to-white border-b border-slate-100 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div className="p-3 sm:p-4 bg-[#0a0c13] border-b border-slate-800/90 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm flex-shrink-0">
-              <Music2 className="w-5 h-5" />
+            <div className="h-8 w-8 rounded-lg bg-cyan-950/80 border border-cyan-800/60 text-cyan-400 flex items-center justify-center flex-shrink-0">
+              <Music2 className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
-                Instant Sound & Melody Deck
-                <span className="text-[10px] font-semibold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
-                  1-Tap to Add
+              <div className="flex items-center gap-2">
+                <h3 className="text-xs sm:text-sm font-bold text-slate-100 font-mono tracking-wide">
+                  Sound Vault & Audio Sampler
+                </h3>
+                <span className="text-[10px] font-mono tracking-wider bg-slate-800 border border-slate-700 text-slate-300 px-2 py-0.5 rounded">
+                  44.1 kHz PCM
                 </span>
-              </h3>
-              <p className="text-[11px] text-slate-500">
-                Click any loop to preview & drop onto your timeline, or search YouTube for songs.
+              </div>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Audition studio stems, extract hooks, or search YouTube audio directly into the arrangement.
               </p>
             </div>
           </div>
@@ -351,19 +352,19 @@ export function WaveformTrimmer({ onOpenSourceModal }: WaveformTrimmerProps) {
             className="flex items-center gap-1.5 w-full md:w-auto"
           >
             <div className="relative flex-1 md:w-64">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={quickSearchInput}
                 onChange={(e) => setQuickSearchInput(e.target.value)}
-                placeholder="Search song or artist on YouTube..."
-                className="w-full text-xs pl-8 pr-2.5 py-1.5 rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-indigo-500"
+                placeholder="Search artist or song on YouTube..."
+                className="w-full text-xs pl-8 pr-2.5 py-1.5 rounded-lg border border-slate-700 bg-[#090b10] text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-cyan-500 font-mono"
               />
             </div>
             <Button
               type="submit"
               size="sm"
-              className="text-xs bg-indigo-600 hover:bg-indigo-700 shadow-sm flex-shrink-0 font-semibold"
+              className="text-xs bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold shadow-sm flex-shrink-0 h-8"
             >
               Search
             </Button>
@@ -380,29 +381,31 @@ export function WaveformTrimmer({ onOpenSourceModal }: WaveformTrimmerProps) {
               return (
                 <div
                   key={sample.id}
-                  className={`rounded-xl border p-2.5 flex flex-col justify-between transition-all duration-200 hover:shadow-sm ${sample.border}`}
+                  className="rounded-xl border border-slate-800/90 bg-[#0e121c] p-3 flex flex-col justify-between transition-all duration-200 hover:border-slate-700 hover:shadow-lg"
                 >
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xl">{sample.icon}</span>
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${sample.badge}`}>
+                      <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded tracking-wider ${sample.badge}`}>
+                        {sample.category}
+                      </span>
+                      <span className="text-[10px] font-mono text-slate-400">
                         {sample.bpm}
                       </span>
                     </div>
-                    <h4 className="text-xs font-bold text-slate-900 leading-tight">{sample.title}</h4>
-                    <p className="text-[10px] text-slate-500 leading-tight mt-0.5">{sample.subtitle}</p>
+                    <h4 className="text-xs font-bold text-slate-100 font-mono leading-tight mt-1">{sample.title}</h4>
+                    <p className="text-[10px] font-mono text-slate-400 leading-tight mt-1">Key: {sample.key}</p>
                   </div>
 
-                  <div className="flex items-center gap-1.5 mt-3 pt-2 border-t border-slate-200/60">
+                  <div className="flex items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-800">
                     <button
                       type="button"
                       onClick={() => toggleDeckPreview(sample)}
                       className={`h-7 w-7 rounded-lg flex items-center justify-center transition-all ${
                         isPreviewing
-                          ? 'bg-amber-500 text-white shadow-sm'
-                          : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+                          ? 'bg-amber-500 text-slate-950 shadow-[0_0_10px_rgba(245,158,11,0.4)]'
+                          : 'bg-slate-800/80 border border-slate-700 text-slate-300 hover:bg-slate-700 hover:text-white'
                       }`}
-                      title={isPreviewing ? 'Stop Preview' : 'Audition Loop'}
+                      title={isPreviewing ? 'Stop Audition' : 'Audition Stem'}
                     >
                       {isPreviewing ? (
                         <Square className="w-3 h-3 fill-current" />
@@ -415,18 +418,18 @@ export function WaveformTrimmer({ onOpenSourceModal }: WaveformTrimmerProps) {
                       size="sm"
                       onClick={() => handleQuickAdd(sample)}
                       isLoading={isAdding}
-                      className={`flex-1 text-[11px] h-7 px-2 font-semibold shadow-sm flex items-center justify-center ${sample.btn}`}
+                      className={`flex-1 text-[11px] h-7 px-2 font-bold shadow-sm flex items-center justify-center ${sample.btn}`}
                       title={`Add to ${tracks.find((t) => t.id === selectedTrackId)?.name || 'Track'}`}
                     >
                       <Plus className="w-3 h-3 mr-1" />
-                      Add to Track
+                      Insert
                     </Button>
 
                     <button
                       type="button"
                       onClick={() => handleQuickTrim(sample)}
-                      className="h-7 w-7 rounded-lg bg-white border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-100 flex items-center justify-center"
-                      title="Fine-tune with Trimmer"
+                      className="h-7 w-7 rounded-lg bg-slate-800/80 border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 flex items-center justify-center"
+                      title="Open in Waveform Trimmer"
                     >
                       <Scissors className="w-3 h-3" />
                     </button>
@@ -438,8 +441,8 @@ export function WaveformTrimmer({ onOpenSourceModal }: WaveformTrimmerProps) {
 
           {/* Toast Notification */}
           {toastMsg && (
-            <div className="mt-3 p-2 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 text-xs font-semibold flex items-center gap-2 animate-in fade-in duration-150">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+            <div className="mt-3 p-2 bg-emerald-950/80 border border-emerald-700/60 rounded-lg text-emerald-300 text-xs font-semibold flex items-center gap-2 animate-in fade-in duration-150">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
               <span>{toastMsg}</span>
             </div>
           )}
@@ -484,38 +487,38 @@ export function WaveformTrimmer({ onOpenSourceModal }: WaveformTrimmerProps) {
   };
 
   return (
-    <Card className="border-slate-200 shadow-sm p-3 sm:p-4">
+    <Card className="border-slate-800 bg-[#12151e] shadow-xl p-3 sm:p-4 text-slate-100">
       <CardHeader className="p-0 pb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 space-y-0">
         <div>
           <CardTitle className="text-sm font-bold flex items-center gap-2">
-            <Scissors className="w-4 h-4 text-blue-600 flex-shrink-0" />
+            <Scissors className="w-4 h-4 text-cyan-400 flex-shrink-0" />
             <span className="truncate">
-              Snippet Trimmer: <span className="text-blue-700">{sourceTrackInfo.title}</span>
+              Waveform Sampler: <span className="text-cyan-400 font-mono">{sourceTrackInfo.title}</span>
             </span>
           </CardTitle>
-          <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
-            Tap waveform or adjust sliders to extract riffs, chords, or hooks
+          <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5">
+            Tap waveform or adjust sliders to extract hooks, riffs, or chord stems
           </p>
         </div>
         <div className="flex items-center gap-2 self-start sm:self-auto">
-          <span className="text-xs font-mono font-bold bg-blue-50 text-blue-700 px-2.5 py-1 rounded-md border border-blue-200">
+          <span className="text-xs font-mono font-bold bg-[#090b10] text-cyan-400 px-2.5 py-1 rounded-md border border-cyan-800/60">
             Snippet: {snippetDurationSec}s
           </span>
           <button
             type="button"
             onClick={clearSourceTrack}
-            className="text-xs text-slate-500 hover:text-slate-800 font-medium px-2 py-1 rounded hover:bg-slate-100 flex items-center gap-1 border border-slate-200"
-            title="Return to Quick Sound Deck"
+            className="text-xs text-slate-400 hover:text-slate-200 font-medium px-2.5 py-1 rounded-md hover:bg-slate-800 flex items-center gap-1 border border-slate-700 bg-slate-800/60 transition-colors"
+            title="Return to Sound Vault"
           >
             <X className="w-3.5 h-3.5" />
-            <span>Sound Deck</span>
+            <span>Sound Vault</span>
           </button>
         </div>
       </CardHeader>
 
       <CardContent className="p-0 space-y-3.5">
         {/* Interactive Waveform Canvas with Touch & Click */}
-        <div className="relative rounded-xl overflow-hidden bg-slate-900/5 border border-slate-200 p-1">
+        <div className="relative rounded-xl overflow-hidden bg-[#090b10] border border-slate-800 p-1">
           <canvas
             ref={canvasRef}
             width={800}
@@ -527,58 +530,58 @@ export function WaveformTrimmer({ onOpenSourceModal }: WaveformTrimmerProps) {
             className="w-full h-[85px] sm:h-[95px] block rounded-lg cursor-pointer touch-none"
             title="Tap on waveform to place start/end marker"
           />
-          <div className="flex justify-between px-2 pt-1 text-[9px] text-slate-400 font-mono">
+          <div className="flex justify-between px-2 pt-1 text-[9px] text-slate-500 font-mono">
             <span>0:00</span>
-            <span className="text-blue-600 font-semibold">Tap waveform to position markers</span>
+            <span className="text-cyan-400 font-semibold">Tap waveform to position in/out cue markers</span>
             <span>{(totalDurationMs / 1000).toFixed(1)}s</span>
           </div>
         </div>
 
         {/* Quick Duration Presets for 1-Tap Mobile Selection */}
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-[11px] font-semibold text-slate-500 mr-1">Quick Presets:</span>
+          <span className="text-[11px] font-mono text-slate-400 mr-1">Presets:</span>
           <button
             type="button"
             onClick={() => setPreset(2)}
-            className="px-2 py-0.5 text-xs bg-slate-100 hover:bg-blue-50 hover:text-blue-600 rounded-md border border-slate-200 font-medium transition-colors"
+            className="px-2.5 py-1 text-xs bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white rounded-md border border-slate-700/80 font-mono transition-colors"
           >
             2s Hook
           </button>
           <button
             type="button"
             onClick={() => setPreset(4)}
-            className="px-2 py-0.5 text-xs bg-slate-100 hover:bg-blue-50 hover:text-blue-600 rounded-md border border-slate-200 font-medium transition-colors"
+            className="px-2.5 py-1 text-xs bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white rounded-md border border-slate-700/80 font-mono transition-colors"
           >
             4s Riff
           </button>
           <button
             type="button"
             onClick={() => setPreset(8)}
-            className="px-2 py-0.5 text-xs bg-slate-100 hover:bg-blue-50 hover:text-blue-600 rounded-md border border-slate-200 font-medium transition-colors"
+            className="px-2.5 py-1 text-xs bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white rounded-md border border-slate-700/80 font-mono transition-colors"
           >
             8s Loop
           </button>
           <button
             type="button"
             onClick={() => setTrimRange(0, totalDurationMs)}
-            className="px-2 py-0.5 text-xs bg-slate-100 hover:bg-blue-50 hover:text-blue-600 rounded-md border border-slate-200 font-medium transition-colors"
+            className="px-2.5 py-1 text-xs bg-slate-800/80 hover:bg-slate-700 text-cyan-400 hover:text-cyan-300 rounded-md border border-slate-700/80 font-mono transition-colors"
           >
             Full Track
           </button>
         </div>
 
         {/* Trim Sliders + Touch-Friendly Nudge Buttons */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-slate-50 p-2.5 sm:p-3 rounded-xl border border-slate-100">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-[#0a0c13] p-3 rounded-xl border border-slate-800">
           {/* Start Marker */}
           <div>
-            <div className="flex justify-between items-center text-xs font-semibold text-slate-700 mb-1">
-              <span>Start In-Point</span>
+            <div className="flex justify-between items-center text-xs font-semibold text-slate-300 mb-1">
+              <span className="font-mono text-slate-400">Start Cue (In)</span>
               <div className="flex items-center gap-1">
-                <span className="font-mono text-blue-600 mr-1.5">{(trimStartMs / 1000).toFixed(2)}s</span>
+                <span className="font-mono text-cyan-400 mr-1.5">{(trimStartMs / 1000).toFixed(2)}s</span>
                 <button
                   type="button"
                   onClick={() => nudgeStart(-500)}
-                  className="px-1.5 py-0.5 text-[10px] bg-white border border-slate-300 rounded hover:bg-slate-100"
+                  className="px-1.5 py-0.5 text-[10px] bg-slate-800 border border-slate-700 rounded text-slate-300 hover:bg-slate-700 hover:text-white font-mono"
                   title="Nudge 0.5s left"
                 >
                   -0.5s
@@ -586,7 +589,7 @@ export function WaveformTrimmer({ onOpenSourceModal }: WaveformTrimmerProps) {
                 <button
                   type="button"
                   onClick={() => nudgeStart(500)}
-                  className="px-1.5 py-0.5 text-[10px] bg-white border border-slate-300 rounded hover:bg-slate-100"
+                  className="px-1.5 py-0.5 text-[10px] bg-slate-800 border border-slate-700 rounded text-slate-300 hover:bg-slate-700 hover:text-white font-mono"
                   title="Nudge 0.5s right"
                 >
                   +0.5s
@@ -600,20 +603,20 @@ export function WaveformTrimmer({ onOpenSourceModal }: WaveformTrimmerProps) {
               step={50}
               value={trimStartMs}
               onChange={(e) => setTrimRange(Number(e.target.value), trimEndMs)}
-              className="w-full accent-blue-600 h-2 bg-slate-200 rounded-lg cursor-pointer"
+              className="w-full accent-cyan-400 h-2 bg-slate-800 rounded-lg cursor-pointer"
             />
           </div>
 
           {/* End Marker */}
           <div>
-            <div className="flex justify-between items-center text-xs font-semibold text-slate-700 mb-1">
-              <span>End Out-Point</span>
+            <div className="flex justify-between items-center text-xs font-semibold text-slate-300 mb-1">
+              <span className="font-mono text-slate-400">End Cue (Out)</span>
               <div className="flex items-center gap-1">
-                <span className="font-mono text-blue-600 mr-1.5">{(trimEndMs / 1000).toFixed(2)}s</span>
+                <span className="font-mono text-cyan-400 mr-1.5">{(trimEndMs / 1000).toFixed(2)}s</span>
                 <button
                   type="button"
                   onClick={() => nudgeEnd(-500)}
-                  className="px-1.5 py-0.5 text-[10px] bg-white border border-slate-300 rounded hover:bg-slate-100"
+                  className="px-1.5 py-0.5 text-[10px] bg-slate-800 border border-slate-700 rounded text-slate-300 hover:bg-slate-700 hover:text-white font-mono"
                   title="Nudge 0.5s left"
                 >
                   -0.5s
@@ -621,7 +624,7 @@ export function WaveformTrimmer({ onOpenSourceModal }: WaveformTrimmerProps) {
                 <button
                   type="button"
                   onClick={() => nudgeEnd(500)}
-                  className="px-1.5 py-0.5 text-[10px] bg-white border border-slate-300 rounded hover:bg-slate-100"
+                  className="px-1.5 py-0.5 text-[10px] bg-slate-800 border border-slate-700 rounded text-slate-300 hover:bg-slate-700 hover:text-white font-mono"
                   title="Nudge 0.5s right"
                 >
                   +0.5s
@@ -635,36 +638,36 @@ export function WaveformTrimmer({ onOpenSourceModal }: WaveformTrimmerProps) {
               step={50}
               value={trimEndMs}
               onChange={(e) => setTrimRange(trimStartMs, Number(e.target.value))}
-              className="w-full accent-blue-600 h-2 bg-slate-200 rounded-lg cursor-pointer"
+              className="w-full accent-cyan-400 h-2 bg-slate-800 rounded-lg cursor-pointer"
             />
           </div>
         </div>
 
         {/* Snippet Controls & Add to Timeline (Touch-Friendly Responsive Layout) */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-1 border-t border-slate-100">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2 border-t border-slate-800/80">
           <div className="flex flex-wrap items-center gap-2.5">
             <Button
               variant="outline"
               size="sm"
               onClick={handlePlaySnippet}
-              className="text-xs h-9 px-3"
+              className="text-xs h-9 px-3 bg-slate-800/80 hover:bg-slate-700 text-slate-200 border-slate-700"
             >
               {isSnippetPlaying ? (
                 <>
-                  <Square className="w-3.5 h-3.5 mr-1.5 text-red-600 fill-current" />
+                  <Square className="w-3.5 h-3.5 mr-1.5 text-red-500 fill-current" />
                   Stop Preview
                 </>
               ) : (
                 <>
-                  <Play className="w-3.5 h-3.5 mr-1.5 fill-current" />
-                  Preview Snippet
+                  <Play className="w-3.5 h-3.5 mr-1.5 fill-current text-cyan-400" />
+                  Audition Snippet
                 </>
               )}
             </Button>
 
             {/* Crossfade Controls */}
-            <div className="flex items-center gap-1.5 text-xs text-slate-600 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200">
-              <span className="text-[11px] text-slate-500 font-medium">Fade:</span>
+            <div className="flex items-center gap-1.5 text-xs text-slate-300 bg-[#0a0c13] px-2.5 py-1 rounded-lg border border-slate-800">
+              <span className="text-[11px] text-slate-400 font-mono">Fade:</span>
               <input
                 type="number"
                 min={0}
@@ -672,10 +675,10 @@ export function WaveformTrimmer({ onOpenSourceModal }: WaveformTrimmerProps) {
                 step={50}
                 value={trimFadeInMs}
                 onChange={(e) => setTrimFadeIn(Number(e.target.value))}
-                className="w-12 px-1 py-0.5 text-xs border border-slate-200 rounded text-center bg-white"
+                className="w-12 px-1 py-0.5 text-xs border border-slate-700 rounded text-center bg-[#090b10] text-slate-100 font-mono"
                 title="Fade-In duration in milliseconds"
               />
-              <span className="text-slate-400">ms</span>
+              <span className="text-slate-500 font-mono">ms</span>
             </div>
           </div>
 
@@ -684,10 +687,10 @@ export function WaveformTrimmer({ onOpenSourceModal }: WaveformTrimmerProps) {
             <select
               value={selectedTrackId}
               onChange={(e) => setSelectedTrackId(e.target.value)}
-              className="h-9 px-2.5 text-xs font-semibold border border-slate-300 rounded-lg bg-white flex-1 sm:flex-initial"
+              className="h-9 px-2.5 text-xs font-mono font-semibold border border-slate-700 rounded-lg bg-[#090b10] text-slate-200 flex-1 sm:flex-initial outline-none cursor-pointer"
             >
               {tracks.map((t) => (
-                <option key={t.id} value={t.id}>
+                <option key={t.id} value={t.id} className="bg-[#12151e] text-slate-200">
                   Target: {t.name}
                 </option>
               ))}
@@ -696,9 +699,9 @@ export function WaveformTrimmer({ onOpenSourceModal }: WaveformTrimmerProps) {
             <Button
               size="sm"
               onClick={handleAddSnippet}
-              className="text-xs h-9 px-3.5 bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-500/20 text-white font-semibold flex items-center justify-center flex-1 sm:flex-initial"
+              className="text-xs h-9 px-4 bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold shadow-md shadow-cyan-950/40 flex items-center justify-center flex-1 sm:flex-initial"
             >
-              <Plus className="w-3.5 h-3.5 mr-1.5" />
+              <Plus className="w-3.5 h-3.5 mr-1" />
               Add to Timeline
             </Button>
           </div>
@@ -706,8 +709,8 @@ export function WaveformTrimmer({ onOpenSourceModal }: WaveformTrimmerProps) {
 
         {/* Toast Notification inside Trimmer */}
         {toastMsg && (
-          <div className="p-2 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 text-xs font-semibold flex items-center gap-2 animate-in fade-in duration-150">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+          <div className="p-2 bg-emerald-950/80 border border-emerald-700/60 rounded-lg text-emerald-300 text-xs font-semibold flex items-center gap-2 animate-in fade-in duration-150">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
             <span>{toastMsg}</span>
           </div>
         )}

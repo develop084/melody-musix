@@ -178,20 +178,20 @@ export function MediaSearchModal({ isOpen, onClose, initialQuery }: MediaSearchM
         stopAudioPreview();
         onClose();
       }}
-      title="Add Song or Sample to Studio"
-      description="Search YouTube, pick instant built-in loops, or upload your own audio file"
+      title="Audio Import & YouTube Sampler"
+      description="Sample directly from YouTube, audition factory stem library, or import local master audio"
       className="max-w-2xl"
     >
       <div className="space-y-4">
         {/* Navigation Tabs (Mobile Responsive & Scrollable) */}
-        <div className="flex border-b border-slate-200 gap-1 pb-1 overflow-x-auto no-scrollbar">
+        <div className="flex border-b border-slate-800 gap-1 pb-1 overflow-x-auto no-scrollbar">
           <button
             type="button"
             onClick={() => setTab('youtube')}
-            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-colors flex-shrink-0 ${
+            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-mono font-semibold rounded-lg transition-colors flex-shrink-0 ${
               tab === 'youtube'
-                ? 'bg-blue-50 text-blue-700'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                ? 'bg-cyan-950/70 border border-cyan-800/60 text-cyan-300'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
             }`}
           >
             <Search className="w-3.5 h-3.5" />
@@ -200,31 +200,33 @@ export function MediaSearchModal({ isOpen, onClose, initialQuery }: MediaSearchM
           <button
             type="button"
             onClick={() => setTab('samples')}
-            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-colors flex-shrink-0 ${
+            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-mono font-semibold rounded-lg transition-colors flex-shrink-0 ${
               tab === 'samples'
-                ? 'bg-blue-50 text-blue-700'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                ? 'bg-cyan-950/70 border border-cyan-800/60 text-cyan-300'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
             }`}
           >
-            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-            Built-in Loops
-            <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full font-bold">Instant</span>
+            <Music className="w-3.5 h-3.5 text-cyan-400" />
+            Factory Stem Library
+            <span className="text-[10px] bg-slate-800 border border-slate-700 text-slate-300 px-1.5 py-0.2 rounded font-mono">
+              Lossless
+            </span>
           </button>
           <button
             type="button"
             onClick={() => setTab('upload')}
-            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-colors flex-shrink-0 ${
+            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-mono font-semibold rounded-lg transition-colors flex-shrink-0 ${
               tab === 'upload'
-                ? 'bg-blue-50 text-blue-700'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                ? 'bg-cyan-950/70 border border-cyan-800/60 text-cyan-300'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
             }`}
           >
             <Upload className="w-3.5 h-3.5" />
-            Local Audio File
+            Local Audio Import
           </button>
         </div>
 
-        {error && <div className="p-2.5 rounded-lg bg-red-50 text-red-700 text-xs font-medium">{error}</div>}
+        {error && <div className="p-2.5 rounded-lg bg-red-950/60 border border-red-800/60 text-red-300 text-xs font-medium">{error}</div>}
 
         {/* Tab 1: YouTube Search */}
         {tab === 'youtube' && (
@@ -234,42 +236,42 @@ export function MediaSearchModal({ isOpen, onClose, initialQuery }: MediaSearchM
                 placeholder="Search song title, artist, or paste YouTube link..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-1"
+                className="flex-1 font-mono text-xs"
                 autoFocus
               />
-              <Button type="submit" size="md" isLoading={isSearching}>
+              <Button type="submit" size="md" isLoading={isSearching} className="bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold">
                 <Search className="w-4 h-4 mr-1.5" />
                 Search
               </Button>
             </form>
 
-            <div className="max-h-80 overflow-y-auto divide-y divide-slate-100 border border-slate-100 rounded-xl">
+            <div className="max-h-80 overflow-y-auto divide-y divide-slate-800 border border-slate-800 rounded-xl bg-[#090b10]">
               {results.length === 0 && !isSearching && (
-                <div className="text-center py-10 text-slate-400 text-xs">
-                  Type a song title above (e.g. "lofi chill", "synthwave melody") to search YouTube.
+                <div className="text-center py-10 text-slate-500 font-mono text-xs">
+                  Type a song or artist above to query the YouTube audio catalog.
                 </div>
               )}
 
               {results.map((track) => (
                 <div
                   key={track.id}
-                  className="p-3 flex items-center justify-between hover:bg-slate-50 transition-colors gap-3"
+                  className="p-3 flex items-center justify-between hover:bg-slate-850/40 transition-colors gap-3"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     {track.thumbnail ? (
                       <img
                         src={track.thumbnail}
                         alt=""
-                        className="w-14 h-10 object-cover rounded-md flex-shrink-0 bg-slate-100"
+                        className="w-14 h-10 object-cover rounded-md flex-shrink-0 bg-slate-900 border border-slate-800"
                       />
                     ) : (
-                      <div className="w-14 h-10 rounded-md bg-blue-100 flex items-center justify-center text-blue-600 flex-shrink-0">
+                      <div className="w-14 h-10 rounded-md bg-slate-800 flex items-center justify-center text-cyan-400 flex-shrink-0">
                         <Music className="w-5 h-5" />
                       </div>
                     )}
                     <div className="min-w-0">
-                      <p className="text-xs font-bold text-slate-900 truncate">{track.title}</p>
-                      <p className="text-[11px] text-slate-500 truncate">
+                      <p className="text-xs font-mono font-bold text-slate-200 truncate">{track.title}</p>
+                      <p className="text-[11px] font-mono text-slate-400 truncate mt-0.5">
                         {track.author} • {track.duration}
                       </p>
                     </div>
@@ -281,19 +283,24 @@ export function MediaSearchModal({ isOpen, onClose, initialQuery }: MediaSearchM
                       size="sm"
                       onClick={() => handlePreview(track)}
                       disabled={loadingAudioId === track.id}
-                      className="h-8 px-2.5"
+                      className="h-8 px-2.5 bg-slate-800/80 hover:bg-slate-700 text-slate-300 border-slate-700"
+                      title="Audition"
                     >
                       {loadingAudioId === track.id ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-400" />
                       ) : previewingId === track.id ? (
-                        <Square className="w-3.5 h-3.5 text-red-600 fill-current" />
+                        <Square className="w-3.5 h-3.5 text-amber-400 fill-current" />
                       ) : (
-                        <Play className="w-3.5 h-3.5 fill-current" />
+                        <Play className="w-3.5 h-3.5 fill-current text-cyan-400" />
                       )}
                     </Button>
-                    <Button size="sm" onClick={() => handleSelectTrack(track)} className="h-8 text-xs">
+                    <Button
+                      size="sm"
+                      onClick={() => handleSelectTrack(track)}
+                      className="h-8 text-xs bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold"
+                    >
                       <PlusCircle className="w-3.5 h-3.5 mr-1" />
-                      Load
+                      Import
                     </Button>
                   </div>
                 </div>
@@ -305,24 +312,24 @@ export function MediaSearchModal({ isOpen, onClose, initialQuery }: MediaSearchM
         {/* Tab 2: Samples & Loops */}
         {tab === 'samples' && (
           <div className="space-y-3">
-            <p className="text-xs text-slate-500">
-              Studio-synthesized loops designed to instantly layer chords, bass, and drums into your melody:
+            <p className="text-xs text-slate-400 font-mono">
+              Factory studio-synthesized stems engineered for seamless harmonic layering:
             </p>
-            <div className="max-h-80 overflow-y-auto divide-y divide-slate-100 border border-slate-100 rounded-xl">
+            <div className="max-h-80 overflow-y-auto divide-y divide-slate-800 border border-slate-800 rounded-xl bg-[#090b10]">
               {samples.map((track) => (
                 <div
                   key={track.id}
-                  className="p-3 flex items-center justify-between hover:bg-slate-50 transition-colors gap-3"
+                  className="p-3 flex items-center justify-between hover:bg-slate-850/40 transition-colors gap-3"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <img
                       src={track.thumbnail}
                       alt=""
-                      className="w-14 h-10 object-cover rounded-md flex-shrink-0 bg-slate-100"
+                      className="w-14 h-10 object-cover rounded-md flex-shrink-0 bg-slate-900 border border-slate-800"
                     />
                     <div className="min-w-0">
-                      <p className="text-xs font-bold text-slate-900 truncate">{track.title}</p>
-                      <p className="text-[11px] text-slate-500 truncate">
+                      <p className="text-xs font-mono font-bold text-slate-200 truncate">{track.title}</p>
+                      <p className="text-[11px] font-mono text-slate-400 truncate mt-0.5">
                         {track.author} • {track.duration}
                       </p>
                     </div>
@@ -334,19 +341,23 @@ export function MediaSearchModal({ isOpen, onClose, initialQuery }: MediaSearchM
                       size="sm"
                       onClick={() => handlePreview(track)}
                       disabled={loadingAudioId === track.id}
-                      className="h-8 px-2.5"
+                      className="h-8 px-2.5 bg-slate-800/80 hover:bg-slate-700 text-slate-300 border-slate-700"
                     >
                       {loadingAudioId === track.id ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-400" />
                       ) : previewingId === track.id ? (
-                        <Square className="w-3.5 h-3.5 text-red-600 fill-current" />
+                        <Square className="w-3.5 h-3.5 text-amber-400 fill-current" />
                       ) : (
-                        <Play className="w-3.5 h-3.5 fill-current" />
+                        <Play className="w-3.5 h-3.5 fill-current text-cyan-400" />
                       )}
                     </Button>
-                    <Button size="sm" onClick={() => handleSelectTrack(track)} className="h-8 text-xs">
+                    <Button
+                      size="sm"
+                      onClick={() => handleSelectTrack(track)}
+                      className="h-8 text-xs bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold"
+                    >
                       <PlusCircle className="w-3.5 h-3.5 mr-1" />
-                      Load
+                      Import
                     </Button>
                   </div>
                 </div>
@@ -357,17 +368,17 @@ export function MediaSearchModal({ isOpen, onClose, initialQuery }: MediaSearchM
 
         {/* Tab 3: Local File Upload */}
         {tab === 'upload' && (
-          <div className="p-8 border-2 border-dashed border-slate-200 rounded-2xl text-center space-y-4 hover:border-blue-400 transition-colors bg-slate-50/50">
-            <div className="h-12 w-12 rounded-2xl bg-blue-100 text-blue-600 mx-auto flex items-center justify-center">
+          <div className="p-8 border-2 border-dashed border-slate-800 rounded-2xl text-center space-y-4 hover:border-cyan-500/60 transition-colors bg-[#090b10]">
+            <div className="h-12 w-12 rounded-2xl bg-cyan-950/80 border border-cyan-800/60 text-cyan-400 mx-auto flex items-center justify-center">
               <Upload className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-slate-900">Upload an Audio Track from Your Computer</p>
-              <p className="text-xs text-slate-500 mt-1">Supports MP3, WAV, AAC, and FLAC files</p>
+              <p className="text-sm font-semibold text-slate-200 font-mono">Import Master Audio From Disk</p>
+              <p className="text-xs text-slate-400 mt-1 font-mono">Supports MP3, WAV Lossless, AAC, and FLAC containers</p>
             </div>
             <label className="inline-flex cursor-pointer">
-              <span className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors">
-                Browse Audio Files
+              <span className="px-4 py-2 text-xs font-bold text-slate-950 bg-cyan-600 hover:bg-cyan-500 rounded-lg shadow-md transition-colors">
+                Select Audio File
               </span>
               <input type="file" accept="audio/*" onChange={handleFileUpload} className="hidden" />
             </label>

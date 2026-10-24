@@ -50,9 +50,9 @@ function TimeDisplay() {
   const durSecs = (durTotalSec % 60).toString().padStart(2, '0');
 
   return (
-    <div className="flex items-center gap-1 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg bg-slate-900 text-white font-mono text-xs sm:text-sm tracking-wider shadow-inner">
-      <Clock className="w-3 h-3 text-blue-400 hidden sm:inline" />
-      <span className="text-emerald-400 font-bold">{mins}:{secs}.{millis}</span>
+    <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-[#07090e] border border-slate-800 text-white font-mono text-xs sm:text-sm tracking-wider shadow-inner ring-1 ring-slate-800/60">
+      <Clock className="w-3.5 h-3.5 text-cyan-400 hidden sm:inline" />
+      <span className="text-emerald-400 font-bold tracking-widest">{mins}:{secs}.{millis}</span>
       <span className="text-slate-600">/</span>
       <span className="text-slate-400">{durMins}:{durSecs}</span>
     </div>
@@ -180,71 +180,81 @@ export function TransportBar({ onOpenProjects, onOpenSourceModal }: TransportBar
     setIsLoadingDemo(true);
     try {
       await loadDemoProject();
-      setNotification('✨ Chill Medley Demo loaded! Press Play to listen.');
+      setNotification('Arrangement template loaded into timeline.');
       setTimeout(() => setNotification(null), 4000);
     } catch (err) {
-      alert('Failed to load demo project');
+      alert('Failed to load demo template');
     } finally {
       setIsLoadingDemo(false);
     }
   };
 
   return (
-    <Card className="border-slate-200 shadow-sm p-3 sm:p-4 bg-white">
+    <Card className="border-slate-800 bg-[#12151e] shadow-2xl p-3 sm:p-4 text-slate-100">
       <div className="flex flex-col gap-3">
-        {/* Row 1: Title input, Demo Melody & Audio Source Action */}
+        {/* Row 1: Channel Title input & Master Console Actions */}
         <div className="flex flex-wrap items-center justify-between gap-2.5">
-          <input
-            type="text"
-            value={projectTitle}
-            onChange={(e) => setProjectTitle(e.target.value)}
-            className="text-sm sm:text-base font-bold text-slate-900 border-b border-transparent hover:border-slate-300 focus:border-blue-500 focus:outline-none px-1 py-0.5 rounded transition-colors max-w-xs"
-            placeholder="Project Title"
-          />
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-mono tracking-wider text-slate-400 uppercase px-1.5 py-0.5 rounded bg-[#090b10] border border-slate-800">
+              SESSION
+            </span>
+            <input
+              type="text"
+              value={projectTitle}
+              onChange={(e) => setProjectTitle(e.target.value)}
+              className="text-sm sm:text-base font-bold text-slate-100 bg-[#090b10] border border-slate-800 hover:border-slate-700 focus:border-cyan-500 focus:outline-none px-2.5 py-1 rounded-lg transition-colors max-w-xs font-mono"
+              placeholder="Session Name"
+            />
+          </div>
+
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setIsShortcutsOpen(true)}
-              className="text-xs border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center font-medium h-8 px-2"
+              className="text-xs border-slate-700 bg-slate-800/80 text-slate-300 hover:bg-slate-750 flex items-center font-medium h-8 px-2.5"
               title="Keyboard & Touch Shortcuts"
             >
-              <HelpCircle className="w-3.5 h-3.5 sm:mr-1 text-slate-500" />
+              <HelpCircle className="w-3.5 h-3.5 sm:mr-1 text-slate-400" />
               <span className="hidden sm:inline">Shortcuts</span>
             </Button>
+
             <Button
               variant="outline"
               size="sm"
               onClick={handleLoadDemo}
               isLoading={isLoadingDemo}
-              className="text-xs border-purple-200 text-purple-700 hover:bg-purple-50 shadow-sm flex items-center font-medium"
-              title="Arrange an instant 3-track chill demo melody"
+              className="text-xs border-slate-700 bg-slate-800/80 text-slate-300 hover:bg-slate-700 shadow-sm flex items-center font-medium h-8 px-2.5"
+              title="Load standard 3-track arrangement template"
             >
-              <Sparkles className="w-3.5 h-3.5 mr-1.5 text-purple-600" />
-              1-Click Demo
+              <RotateCcw className="w-3.5 h-3.5 mr-1.5 text-cyan-400" />
+              Demo Template
             </Button>
+
             <Button
               size="sm"
               onClick={onOpenSourceModal}
-              className="text-xs bg-indigo-600 hover:bg-indigo-700 shadow-sm flex items-center justify-center font-semibold"
+              className="text-xs bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold shadow-md shadow-cyan-950/40 flex items-center justify-center h-8 px-3"
             >
-              <Sparkles className="w-3.5 h-3.5 mr-1.5" />
-              Add Audio / YouTube
+              <SlidersHorizontal className="w-3.5 h-3.5 mr-1.5" />
+              Import Audio / YouTube
             </Button>
           </div>
         </div>
 
         {/* Row 2: Playback Transport, Undo/Redo & Actions (Fully Responsive) */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-slate-100">
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2.5 border-t border-slate-800/80">
           {/* Playback & Undo/Redo & Visualizer cluster */}
           <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
             <Button
               size="md"
               onClick={handleTogglePlay}
-              className={`h-9 w-11 sm:h-10 sm:w-12 p-0 shadow-md ${
-                isPlaying ? 'bg-amber-600 hover:bg-amber-700' : 'bg-blue-600 hover:bg-blue-700'
+              className={`h-9 w-11 sm:h-10 sm:w-12 p-0 shadow-lg transition-all ${
+                isPlaying
+                  ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-[0_0_16px_rgba(245,158,11,0.4)]'
+                  : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-[0_0_16px_rgba(16,185,129,0.35)]'
               }`}
-              title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
+              title={isPlaying ? 'Pause Timeline (Space)' : 'Play Timeline (Space)'}
             >
               {isPlaying ? (
                 <Pause className="w-5 h-5 fill-current" />
@@ -257,7 +267,7 @@ export function TransportBar({ onOpenProjects, onOpenSourceModal }: TransportBar
               variant="outline"
               size="sm"
               onClick={handleStop}
-              className="h-9 w-9 p-0 text-slate-600"
+              className="h-9 w-9 p-0 bg-slate-800/80 hover:bg-slate-700 text-slate-300 border-slate-700/80"
               title="Stop & Return to Start"
             >
               <Square className="w-3.5 h-3.5 fill-current" />
@@ -268,14 +278,14 @@ export function TransportBar({ onOpenProjects, onOpenSourceModal }: TransportBar
               variant="outline"
               size="sm"
               onClick={toggleLoop}
-              className={`h-9 w-9 p-0 transition-colors ${
+              className={`h-9 w-9 p-0 transition-all ${
                 isLooping
-                  ? 'bg-amber-50 border-amber-300 text-amber-600 hover:bg-amber-100'
-                  : 'text-slate-600 hover:bg-slate-100'
+                  ? 'bg-amber-950/70 border-amber-500/80 text-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.3)]'
+                  : 'bg-slate-800/60 border-slate-700/80 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
               }`}
-              title={isLooping ? 'Looping is ON (click to disable)' : 'Enable Continuous Looping'}
+              title={isLooping ? 'Continuous Loop is ACTIVE' : 'Enable Continuous Loop'}
             >
-              <Repeat className={`w-4 h-4 ${isLooping ? 'text-amber-600 stroke-[2.5]' : ''}`} />
+              <Repeat className={`w-4 h-4 ${isLooping ? 'stroke-[2.5]' : ''}`} />
             </Button>
 
             {/* Metronome Click Track Button */}
@@ -283,14 +293,14 @@ export function TransportBar({ onOpenProjects, onOpenSourceModal }: TransportBar
               variant="outline"
               size="sm"
               onClick={toggleMetronome}
-              className={`h-9 w-9 p-0 transition-colors ${
+              className={`h-9 w-9 p-0 transition-all ${
                 isMetronomeActive
-                  ? 'bg-blue-50 border-blue-300 text-blue-600 hover:bg-blue-100'
-                  : 'text-slate-600 hover:bg-slate-100'
+                  ? 'bg-cyan-950/70 border-cyan-500/80 text-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.3)]'
+                  : 'bg-slate-800/60 border-slate-700/80 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
               }`}
-              title={isMetronomeActive ? 'Metronome click is ON (click to disable)' : 'Enable Metronome (Click track)'}
+              title={isMetronomeActive ? 'Metronome rhythm is ACTIVE' : 'Enable Metronome Rhythm'}
             >
-              <Timer className={`w-4 h-4 ${isMetronomeActive ? 'text-blue-600 stroke-[2.5]' : ''}`} />
+              <Timer className={`w-4 h-4 ${isMetronomeActive ? 'stroke-[2.5]' : ''}`} />
             </Button>
 
             {/* Undo Button */}
@@ -299,10 +309,10 @@ export function TransportBar({ onOpenProjects, onOpenSourceModal }: TransportBar
               size="sm"
               onClick={undo}
               disabled={!canUndo}
-              className={`h-9 w-9 p-0 ${
-                canUndo ? 'text-slate-800 hover:bg-slate-100' : 'text-slate-300 cursor-not-allowed'
+              className={`h-9 w-9 p-0 bg-slate-800/60 border-slate-700/80 ${
+                canUndo ? 'text-slate-200 hover:bg-slate-700 hover:text-white' : 'text-slate-600 cursor-not-allowed'
               }`}
-              title="Undo action (Ctrl+Z)"
+              title="Undo arrangement action (Ctrl+Z)"
             >
               <Undo2 className="w-4 h-4" />
             </Button>
@@ -313,10 +323,10 @@ export function TransportBar({ onOpenProjects, onOpenSourceModal }: TransportBar
               size="sm"
               onClick={redo}
               disabled={!canRedo}
-              className={`h-9 w-9 p-0 ${
-                canRedo ? 'text-slate-800 hover:bg-slate-100' : 'text-slate-300 cursor-not-allowed'
+              className={`h-9 w-9 p-0 bg-slate-800/60 border-slate-700/80 ${
+                canRedo ? 'text-slate-200 hover:bg-slate-700 hover:text-white' : 'text-slate-600 cursor-not-allowed'
               }`}
-              title="Redo action (Ctrl+Y)"
+              title="Redo undone action (Ctrl+Y)"
             >
               <Redo2 className="w-4 h-4" />
             </Button>
@@ -335,17 +345,17 @@ export function TransportBar({ onOpenProjects, onOpenSourceModal }: TransportBar
               variant="outline"
               size="sm"
               onClick={() => setShowFilterControl(!showFilterControl)}
-              className={`h-8 sm:h-9 px-2 text-xs flex items-center gap-1 ${
+              className={`h-8 sm:h-9 px-2.5 text-xs flex items-center gap-1.5 ${
                 masterFilterFreq < 19000
-                  ? 'bg-indigo-50 border-indigo-300 text-indigo-700 font-semibold'
-                  : 'text-slate-600'
+                  ? 'bg-cyan-950/70 border-cyan-500/80 text-cyan-300 font-semibold shadow-[0_0_10px_rgba(6,182,212,0.25)]'
+                  : 'bg-slate-800/60 border-slate-700/80 text-slate-300 hover:text-white hover:bg-slate-800'
               }`}
-              title="DJ Low-Pass Filter Effect"
+              title="DJ Low-Pass Filter DSP Effect"
             >
-              <SlidersHorizontal className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">DJ Filter</span>
+              <SlidersHorizontal className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="hidden sm:inline font-mono">DSP Filter</span>
               {masterFilterFreq < 19000 && (
-                <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-ping ml-0.5" />
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping ml-0.5" />
               )}
             </Button>
 
@@ -353,25 +363,25 @@ export function TransportBar({ onOpenProjects, onOpenSourceModal }: TransportBar
             <select
               value={durationMs}
               onChange={(e) => setDurationMs(Number(e.target.value))}
-              className="h-8 sm:h-9 px-2 text-xs font-semibold border border-slate-300 rounded-lg bg-white"
-              title="Master Timeline Length"
+              className="h-8 sm:h-9 px-2 text-xs font-mono font-semibold border border-slate-700 rounded-lg bg-[#090b10] text-slate-200 hover:border-slate-600 outline-none cursor-pointer"
+              title="Master Timeline Duration"
             >
-              <option value={15000}>15s</option>
-              <option value={30000}>30s</option>
-              <option value={45000}>45s</option>
-              <option value={60000}>60s</option>
-              <option value={90000}>90s</option>
+              <option value={15000}>15s Loop</option>
+              <option value={30000}>30s Section</option>
+              <option value={45000}>45s Track</option>
+              <option value={60000}>60s Arrangement</option>
+              <option value={90000}>90s Extended</option>
             </select>
 
             <Button
               variant="outline"
               size="sm"
               onClick={onOpenProjects}
-              className="text-xs h-8 sm:h-9 px-2 sm:px-3"
-              title="Load saved projects"
+              className="text-xs h-8 sm:h-9 px-2 sm:px-3 bg-slate-800/80 hover:bg-slate-700 text-slate-300 border-slate-700"
+              title="Open saved sessions"
             >
-              <FolderOpen className="w-3.5 h-3.5 sm:mr-1" />
-              <span className="hidden sm:inline">Projects</span>
+              <FolderOpen className="w-3.5 h-3.5 sm:mr-1 text-slate-400" />
+              <span className="hidden sm:inline">Sessions</span>
             </Button>
 
             <Button
@@ -379,31 +389,31 @@ export function TransportBar({ onOpenProjects, onOpenSourceModal }: TransportBar
               size="sm"
               onClick={handleSaveProject}
               isLoading={isSaving}
-              className="text-xs h-8 sm:h-9 px-2 sm:px-3"
-              title="Save project"
+              className="text-xs h-8 sm:h-9 px-2 sm:px-3 bg-slate-800/80 hover:bg-slate-700 text-slate-300 border-slate-700"
+              title="Save session to database"
             >
-              <Save className="w-3.5 h-3.5 sm:mr-1" />
+              <Save className="w-3.5 h-3.5 sm:mr-1 text-slate-400" />
               <span className="hidden sm:inline">Save</span>
             </Button>
 
             {/* Export Format Selector */}
-            <div className="flex items-center rounded-lg border border-slate-300 overflow-hidden bg-white shadow-sm">
+            <div className="flex items-center rounded-lg border border-slate-700 overflow-hidden bg-[#090b10] shadow-md">
               <select
                 value={exportFormat}
                 onChange={(e) => setExportFormat(e.target.value as AudioExportFormat)}
-                className="h-8 sm:h-9 px-2 text-[11px] sm:text-xs font-semibold bg-transparent border-r border-slate-200 outline-none cursor-pointer"
-                title="Select Export Quality & Audio Format"
+                className="h-8 sm:h-9 px-2 text-[11px] sm:text-xs font-mono font-semibold bg-transparent border-r border-slate-700 text-slate-300 outline-none cursor-pointer"
+                title="Select Export Audio Format & Bitrate"
               >
-                <option value="mp3-192">MP3 192k</option>
-                <option value="mp3-320">MP3 320k (HD)</option>
-                <option value="wav">WAV Lossless</option>
+                <option value="mp3-192" className="bg-[#12151e] text-slate-200">MP3 192k</option>
+                <option value="mp3-320" className="bg-[#12151e] text-slate-200">MP3 320k Pro</option>
+                <option value="wav" className="bg-[#12151e] text-slate-200">WAV Lossless</option>
               </select>
 
               <Button
                 size="sm"
                 onClick={handleExport}
                 isLoading={isExporting}
-                className="text-xs h-8 sm:h-9 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center rounded-none"
+                className="text-xs h-8 sm:h-9 px-3 bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold flex items-center rounded-none shadow-none"
               >
                 <Download className="w-3.5 h-3.5 mr-1" />
                 {isExporting ? `${exportProgress}%` : 'Export'}
@@ -414,12 +424,12 @@ export function TransportBar({ onOpenProjects, onOpenSourceModal }: TransportBar
 
         {/* Master DJ Filter Inline Drawer */}
         {showFilterControl && (
-          <div className="p-2.5 sm:p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl flex flex-wrap items-center justify-between gap-3 animate-in fade-in slide-in-from-top-1 duration-150">
+          <div className="p-3 bg-[#0a0c13] border border-slate-800 rounded-xl flex flex-wrap items-center justify-between gap-3 animate-in fade-in slide-in-from-top-1 duration-150">
             <div className="flex items-center gap-2">
-              <SlidersHorizontal className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+              <SlidersHorizontal className="w-4 h-4 text-cyan-400 flex-shrink-0" />
               <div>
-                <span className="text-xs font-bold text-indigo-950">Master DJ Low-Pass Filter</span>
-                <p className="text-[10px] text-indigo-700">Real-time sweep for club build-ups & drops</p>
+                <span className="text-xs font-bold text-slate-100 font-mono">Biquad Low-Pass Filter</span>
+                <p className="text-[10px] text-slate-400">Hardware DSP frequency cutoff sweep for transitions & drops</p>
               </div>
             </div>
 
@@ -431,9 +441,9 @@ export function TransportBar({ onOpenProjects, onOpenSourceModal }: TransportBar
                 step={100}
                 value={masterFilterFreq}
                 onChange={(e) => setMasterFilterFreq(Number(e.target.value))}
-                className="w-full accent-indigo-600 h-1.5 bg-indigo-200 rounded-lg cursor-pointer"
+                className="w-full accent-cyan-400 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
               />
-              <span className="font-mono text-xs font-bold text-indigo-900 w-16 text-right">
+              <span className="font-mono text-xs font-bold text-cyan-400 w-16 text-right">
                 {masterFilterFreq >= 1000
                   ? `${(masterFilterFreq / 1000).toFixed(1)} kHz`
                   : `${Math.round(masterFilterFreq)} Hz`}
@@ -444,25 +454,25 @@ export function TransportBar({ onOpenProjects, onOpenSourceModal }: TransportBar
               <button
                 type="button"
                 onClick={() => setMasterFilterFreq(800)}
-                className="px-2 py-0.5 text-[10px] bg-white border border-indigo-200 text-indigo-700 rounded-md font-semibold hover:bg-indigo-100"
+                className="px-2 py-1 text-[10px] bg-slate-800/80 border border-slate-700 text-slate-300 rounded-md font-mono hover:bg-slate-700 hover:text-white"
               >
-                Club Sub (800Hz)
+                Sub 800Hz
               </button>
               <button
                 type="button"
                 onClick={() => setMasterFilterFreq(3000)}
-                className="px-2 py-0.5 text-[10px] bg-white border border-indigo-200 text-indigo-700 rounded-md font-semibold hover:bg-indigo-100"
+                className="px-2 py-1 text-[10px] bg-slate-800/80 border border-slate-700 text-slate-300 rounded-md font-mono hover:bg-slate-700 hover:text-white"
               >
-                Warm Mid (3kHz)
+                Warm 3kHz
               </button>
               <button
                 type="button"
                 onClick={() => setMasterFilterFreq(20000)}
-                className="px-2 py-0.5 text-[10px] bg-white border border-indigo-200 text-indigo-700 rounded-md font-semibold hover:bg-indigo-100 flex items-center gap-0.5"
-                title="Reset filter to full spectrum"
+                className="px-2 py-1 text-[10px] bg-slate-800/80 border border-slate-700 text-cyan-400 rounded-md font-mono hover:bg-slate-700 flex items-center gap-1"
+                title="Bypass filter to full 20 kHz spectrum"
               >
                 <RotateCcw className="w-2.5 h-2.5" />
-                Reset (20kHz)
+                Bypass (20kHz)
               </button>
             </div>
           </div>
@@ -470,16 +480,16 @@ export function TransportBar({ onOpenProjects, onOpenSourceModal }: TransportBar
 
         {/* Global Loading / Processing Alert */}
         {isProcessingAudio && (
-          <div className="p-2.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-xs font-semibold flex items-center gap-2 animate-pulse">
-            <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-            <span>{processingStatus || 'Streaming and decoding audio buffer... Please wait'}</span>
+          <div className="p-2.5 rounded-lg bg-cyan-950/60 border border-cyan-800/60 text-cyan-300 text-xs font-semibold flex items-center gap-2 animate-pulse">
+            <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
+            <span>{processingStatus || 'Decoding high-precision audio buffer...'}</span>
           </div>
         )}
 
         {/* Notification Toast */}
         {notification && (
-          <div className="p-2 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 text-xs font-semibold flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+          <div className="p-2 bg-emerald-950/80 border border-emerald-700/60 rounded-lg text-emerald-300 text-xs font-semibold flex items-center gap-2 animate-in fade-in duration-150">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
             <span>{notification}</span>
           </div>
         )}
@@ -489,62 +499,62 @@ export function TransportBar({ onOpenProjects, onOpenSourceModal }: TransportBar
       <Modal
         isOpen={isShortcutsOpen}
         onClose={() => setIsShortcutsOpen(false)}
-        title="Pro Keyboard & Touch Shortcuts"
-        description="Speed up your audio editing and melody arrangement"
+        title="Studio Control Shortcuts"
+        description="Speed up multitrack arrangement and editing workflows"
       >
-        <div className="space-y-2.5 pt-2 text-xs text-slate-700">
-          <div className="grid grid-cols-2 gap-2 border-b border-slate-100 pb-2">
-            <div className="flex items-center gap-1.5 font-mono font-bold text-slate-900 bg-slate-100 px-2 py-1 rounded">
-              <Keyboard className="w-3.5 h-3.5 text-blue-600" />
+        <div className="space-y-2 pt-2 text-xs text-slate-300 font-sans">
+          <div className="grid grid-cols-2 gap-2 border-b border-slate-800 pb-2">
+            <div className="flex items-center gap-1.5 font-mono font-bold text-cyan-400 bg-[#090b10] border border-slate-800 px-2 py-1 rounded">
+              <Keyboard className="w-3.5 h-3.5 text-slate-400" />
               <span>Space</span>
             </div>
-            <div className="flex items-center text-slate-600">Play / Pause Timeline</div>
+            <div className="flex items-center text-slate-400">Play / Pause Timeline</div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 border-b border-slate-100 pb-2">
-            <div className="flex items-center gap-1.5 font-mono font-bold text-slate-900 bg-slate-100 px-2 py-1 rounded">
-              <Keyboard className="w-3.5 h-3.5 text-blue-600" />
+          <div className="grid grid-cols-2 gap-2 border-b border-slate-800 pb-2">
+            <div className="flex items-center gap-1.5 font-mono font-bold text-cyan-400 bg-[#090b10] border border-slate-800 px-2 py-1 rounded">
+              <Keyboard className="w-3.5 h-3.5 text-slate-400" />
               <span>Ctrl + Z</span>
             </div>
-            <div className="flex items-center text-slate-600">Undo last arrangement change</div>
+            <div className="flex items-center text-slate-400">Undo arrangement action</div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 border-b border-slate-100 pb-2">
-            <div className="flex items-center gap-1.5 font-mono font-bold text-slate-900 bg-slate-100 px-2 py-1 rounded">
-              <Keyboard className="w-3.5 h-3.5 text-blue-600" />
+          <div className="grid grid-cols-2 gap-2 border-b border-slate-800 pb-2">
+            <div className="flex items-center gap-1.5 font-mono font-bold text-cyan-400 bg-[#090b10] border border-slate-800 px-2 py-1 rounded">
+              <Keyboard className="w-3.5 h-3.5 text-slate-400" />
               <span>Ctrl + Y</span>
             </div>
-            <div className="flex items-center text-slate-600">Redo undone change</div>
+            <div className="flex items-center text-slate-400">Redo undone action</div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 border-b border-slate-100 pb-2">
-            <div className="flex items-center gap-1.5 font-mono font-bold text-slate-900 bg-slate-100 px-2 py-1 rounded">
-              <Repeat className="w-3.5 h-3.5 text-amber-600" />
-              <span>Loop Icon</span>
+          <div className="grid grid-cols-2 gap-2 border-b border-slate-800 pb-2">
+            <div className="flex items-center gap-1.5 font-mono font-bold text-amber-400 bg-[#090b10] border border-slate-800 px-2 py-1 rounded">
+              <Repeat className="w-3.5 h-3.5 text-amber-400" />
+              <span>Loop Key</span>
             </div>
-            <div className="flex items-center text-slate-600">Toggle seamless continuous cycle</div>
+            <div className="flex items-center text-slate-400">Toggle continuous loop cycle</div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 border-b border-slate-100 pb-2">
-            <div className="flex items-center gap-1.5 font-mono font-bold text-slate-900 bg-slate-100 px-2 py-1 rounded">
-              <Timer className="w-3.5 h-3.5 text-blue-600" />
-              <span>Timer Icon</span>
+          <div className="grid grid-cols-2 gap-2 border-b border-slate-800 pb-2">
+            <div className="flex items-center gap-1.5 font-mono font-bold text-cyan-400 bg-[#090b10] border border-slate-800 px-2 py-1 rounded">
+              <Timer className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Click Track</span>
             </div>
-            <div className="flex items-center text-slate-600">Toggle metronome rhythm click</div>
+            <div className="flex items-center text-slate-400">Toggle metronome beat audio</div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 border-b border-slate-100 pb-2">
-            <div className="flex items-center gap-1.5 font-mono font-bold text-slate-900 bg-slate-100 px-2 py-1 rounded">
-              <span>◀ / ▶ Buttons</span>
+          <div className="grid grid-cols-2 gap-2 border-b border-slate-800 pb-2">
+            <div className="flex items-center gap-1.5 font-mono font-bold text-slate-200 bg-[#090b10] border border-slate-800 px-2 py-1 rounded">
+              <span>◀ / ▶</span>
             </div>
-            <div className="flex items-center text-slate-600">Touch-friendly clip nudge on phones</div>
+            <div className="flex items-center text-slate-400">Nudge clip by 1 beat on mobile</div>
           </div>
 
           <div className="grid grid-cols-2 gap-2 pb-1">
-            <div className="flex items-center gap-1.5 font-mono font-bold text-slate-900 bg-slate-100 px-2 py-1 rounded">
-              <span>Copy Icon</span>
+            <div className="flex items-center gap-1.5 font-mono font-bold text-slate-200 bg-[#090b10] border border-slate-800 px-2 py-1 rounded">
+              <span>Duplicate</span>
             </div>
-            <div className="flex items-center text-slate-600">Instant clip duplicate & repeat</div>
+            <div className="flex items-center text-slate-400">Instant clip copy & repeat</div>
           </div>
         </div>
       </Modal>

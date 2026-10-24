@@ -4,20 +4,41 @@
 
 @layer base {
   :root {
-    --background: 210 40% 98%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --border: 214.3 31.8% 91.4%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --primary-hover: 221.2 83.2% 45%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --background: 224 71% 4%;
+    --foreground: 210 40% 98%;
+    --card: 224 71% 7%;
+    --card-foreground: 210 40% 98%;
+    --border: 217 33% 17%;
+    --primary: 187 92% 45%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary-hover: 187 92% 38%;
+    --muted: 217 33% 15%;
+    --muted-foreground: 215 20% 65%;
   }
 
   body {
-    @apply bg-slate-50 text-slate-900 antialiased;
+    @apply bg-[#0b0d13] text-slate-100 antialiased font-sans;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
+
+  /* Studio hardware custom scrollbars */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #090a0f;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #232733;
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #374151;
+  }
+}
+
+/* Audio fader / range slider hardware styling */
+input[type="range"] {
+  accent-color: #06b6d4;
 }

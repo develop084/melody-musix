@@ -25,20 +25,27 @@ export function MasterVisualizer() {
       const barWidth = Math.floor((width - (numBars - 1) * 2) / numBars);
 
       for (let i = 0; i < numBars; i++) {
-        // Sample frequency spectrum
         const dataIndex = Math.min(freqData.length - 1, Math.floor((i / numBars) * freqData.length));
         const val = isPlaying ? freqData[dataIndex] || 0 : 0;
         const barHeight = Math.max(2, Math.floor((val / 255) * height));
         const x = i * (barWidth + 2);
         const y = height - barHeight;
 
-        // Gradient coloring: green -> yellow -> amber
-        const hue = 140 - (val / 255) * 110;
-        ctx.fillStyle = isPlaying ? `hsl(${hue}, 85%, 50%)` : '#cbd5e1';
+        // Hardware LED gradient: green -> amber -> red peak
+        if (isPlaying) {
+          if (val > 220) {
+            ctx.fillStyle = '#ef4444'; // Red peak
+          } else if (val > 150) {
+            ctx.fillStyle = '#f59e0b'; // Amber
+          } else {
+            ctx.fillStyle = '#10b981'; // Emerald
+          }
+        } else {
+          ctx.fillStyle = '#1e2433';
+        }
 
-        // Rounded bar top
         ctx.beginPath();
-        ctx.roundRect(x, y, barWidth, barHeight, [2, 2, 0, 0]);
+        ctx.roundRect(x, y, barWidth, barHeight, [1.5, 1.5, 0, 0]);
         ctx.fill();
       }
 
@@ -50,8 +57,11 @@ export function MasterVisualizer() {
   }, [isPlaying]);
 
   return (
-    <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-900 rounded-lg border border-slate-800 shadow-inner" title="Real-time Master Output Audio Meter">
-      <Activity className={`w-3.5 h-3.5 ${isPlaying ? 'text-emerald-400 animate-pulse' : 'text-slate-500'}`} />
+    <div
+      className="flex items-center gap-1.5 px-2 py-1 bg-[#08090d] rounded-lg border border-slate-800/80 shadow-inner"
+      title="Master Bus Peak Spectrum Analyser"
+    >
+      <Activity className={`w-3.5 h-3.5 ${isPlaying ? 'text-cyan-400 animate-pulse' : 'text-slate-600'}`} />
       <canvas ref={canvasRef} width={80} height={20} className="w-16 sm:w-20 h-5 block" />
     </div>
   );

@@ -14,11 +14,11 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       'inline-flex items-center justify-center font-medium rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none select-none';
 
     const variants = {
-      primary: 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 shadow-sm',
-      secondary: 'bg-slate-100 text-slate-800 hover:bg-slate-200 active:bg-slate-300',
-      destructive: 'bg-red-600 text-white hover:bg-red-700 active:bg-red-800 shadow-sm',
-      outline: 'border border-slate-300 bg-transparent text-slate-700 hover:bg-slate-100 active:bg-slate-200',
-      ghost: 'bg-transparent text-slate-700 hover:bg-slate-100 active:bg-slate-200',
+      primary: 'bg-cyan-600 text-slate-950 font-bold hover:bg-cyan-500 active:bg-cyan-700 shadow-sm shadow-cyan-900/30',
+      secondary: 'bg-slate-800 text-slate-200 hover:bg-slate-750 hover:text-white active:bg-slate-700 border border-slate-700/80',
+      destructive: 'bg-red-600 text-white hover:bg-red-500 active:bg-red-700 shadow-sm',
+      outline: 'border border-slate-700/80 bg-slate-900/40 text-slate-300 hover:bg-slate-800 hover:text-white active:bg-slate-700',
+      ghost: 'bg-transparent text-slate-400 hover:bg-slate-850 hover:text-slate-200 active:bg-slate-800',
     };
 
     const sizes = {
