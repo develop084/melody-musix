@@ -11,6 +11,7 @@
     "dev:backend": "npm run dev --workspace=backend",
     "dev:frontend": "npm run dev --workspace=frontend",
     "build": "npm run build --workspaces",
+    "start": "node backend/dist/server.js",
     "codegen": "openapi-typescript spec/openapi.yaml -o frontend/src/types/api.generated.ts && openapi-typescript spec/openapi.yaml -o backend/src/types/api.generated.ts",
     "db:push": "npm run db:push --workspace=backend",
     "db:seed": "npm run db:seed --workspace=backend",
