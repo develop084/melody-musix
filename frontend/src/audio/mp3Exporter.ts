@@ -1,6 +1,6 @@
-import lamejs from 'lamejs';
 import { Track } from '../types';
 import { audioEngine } from './audioEngine';
+import { getLame } from './lameEncoder';
 
 export async function renderTimelineToAudioBuffer(
   tracks: Track[],
@@ -36,23 +36,16 @@ export async function renderTimelineToAudioBuffer(
       const clipGain = offlineCtx.createGain();
       const baseVolume = clip.volume ?? 1.0;
 
-      const fadeInSec = (clip.fadeInMs || 150) / 1000;
-      const fadeOutSec = (clip.fadeOutMs || 150) / 1000;
+      // Safe linear ramp clamps to prevent DOMExceptions
+      const clipDur = Math.max(0.05, clipDurationSec);
+      const maxFade = clipDur * 0.45;
+      const actualFadeIn = Math.min((clip.fadeInMs || 150) / 1000, maxFade);
+      const actualFadeOut = Math.min((clip.fadeOutMs || 150) / 1000, maxFade);
 
-      // Crossfade envelopes
-      clipGain.gain.setValueAtTime(0.001, clipTimelineStartSec);
-      clipGain.gain.exponentialRampToValueAtTime(
-        Math.max(0.001, baseVolume),
-        clipTimelineStartSec + fadeInSec
-      );
-      clipGain.gain.setValueAtTime(
-        Math.max(0.001, baseVolume),
-        Math.max(clipTimelineStartSec + fadeInSec, clipTimelineStartSec + clipDurationSec - fadeOutSec)
-      );
-      clipGain.gain.exponentialRampToValueAtTime(
-        0.001,
-        clipTimelineStartSec + clipDurationSec
-      );
+      clipGain.gain.setValueAtTime(0, clipTimelineStartSec);
+      clipGain.gain.linearRampToValueAtTime(baseVolume, clipTimelineStartSec + actualFadeIn);
+      clipGain.gain.setValueAtTime(baseVolume, clipTimelineStartSec + clipDur - actualFadeOut);
+      clipGain.gain.linearRampToValueAtTime(0, clipTimelineStartSec + clipDur);
 
       clipSource.connect(clipGain);
       clipGain.connect(trackGain);
@@ -69,6 +62,8 @@ export function encodeAudioBufferToMp3(
   bitrateKbps = 192,
   onProgress?: (percent: number) => void
 ): Blob {
+  const { Mp3Encoder } = getLame();
+
   const channels = audioBuffer.numberOfChannels;
   const sampleRate = audioBuffer.sampleRate;
   const length = audioBuffer.length;
@@ -87,15 +82,15 @@ export function encodeAudioBufferToMp3(
     rightInt16[i] = r < 0 ? r * 32768 : r * 32767;
   }
 
-  const mp3Encoder = new lamejs.Mp3Encoder(2, sampleRate, bitrateKbps);
+  const mp3Encoder = new Mp3Encoder(2, sampleRate, bitrateKbps);
   const mp3Data: Uint8Array[] = [];
 
-  const sampleBlockSize = 1152; // LAME standard frame size
+  const sampleBlockSize = 1152;
   for (let i = 0; i < length; i += sampleBlockSize) {
     const leftChunk = leftInt16.subarray(i, i + sampleBlockSize);
     const rightChunk = rightInt16.subarray(i, i + sampleBlockSize);
     const mp3buf = mp3Encoder.encodeBuffer(leftChunk, rightChunk);
-    if (mp3buf.length > 0) {
+    if (mp3buf && mp3buf.length > 0) {
       mp3Data.push(new Uint8Array(mp3buf));
     }
     if (onProgress && i % (sampleBlockSize * 10) === 0) {
@@ -104,12 +99,53 @@ export function encodeAudioBufferToMp3(
   }
 
   const endBuf = mp3Encoder.flush();
-  if (endBuf.length > 0) {
+  if (endBuf && endBuf.length > 0) {
     mp3Data.push(new Uint8Array(endBuf));
   }
 
   onProgress?.(100);
   return new Blob(mp3Data as any, { type: 'audio/mp3' });
+}
+
+// 16-bit PCM WAV Encoder fallback
+export function encodeAudioBufferToWav(audioBuffer: AudioBuffer): Blob {
+  const numChannels = 2;
+  const sampleRate = audioBuffer.sampleRate;
+  const length = audioBuffer.length;
+  const buffer = new ArrayBuffer(44 + length * 4);
+  const view = new DataView(buffer);
+
+  const writeString = (offset: number, str: string) => {
+    for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+  };
+
+  writeString(0, 'RIFF');
+  view.setUint32(4, 36 + length * 4, true);
+  writeString(8, 'WAVE');
+  writeString(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true); // PCM
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 4, true);
+  view.setUint16(32, 4, true);
+  view.setUint16(34, 16, true);
+  writeString(36, 'data');
+  view.setUint32(40, length * 4, true);
+
+  const left = audioBuffer.getChannelData(0);
+  const right = audioBuffer.numberOfChannels > 1 ? audioBuffer.getChannelData(1) : left;
+
+  let offset = 44;
+  for (let i = 0; i < length; i++) {
+    const l = Math.max(-1, Math.min(1, left[i]));
+    const r = Math.max(-1, Math.min(1, right[i]));
+    view.setInt16(offset, l < 0 ? l * 32768 : l * 32767, true);
+    view.setInt16(offset + 2, r < 0 ? r * 32768 : r * 32767, true);
+    offset += 4;
+  }
+
+  return new Blob([buffer], { type: 'audio/wav' });
 }
 
 export async function renderAndExportMp3(
@@ -125,9 +161,14 @@ export async function renderAndExportMp3(
   const renderedBuffer = await renderTimelineToAudioBuffer(tracks, totalDurationMs);
   onProgress?.(40);
 
-  return encodeAudioBufferToMp3(renderedBuffer, bitrateKbps, (pct) => {
-    onProgress?.(40 + Math.floor(pct * 0.6));
-  });
+  try {
+    return encodeAudioBufferToMp3(renderedBuffer, bitrateKbps, (pct) => {
+      onProgress?.(40 + Math.floor(pct * 0.6));
+    });
+  } catch (err) {
+    console.warn('LAME MP3 encoding encountered error, generating lossless WAV fallback:', err);
+    return encodeAudioBufferToWav(renderedBuffer);
+  }
 }
 
 export function downloadBlob(blob: Blob, filename: string) {
@@ -141,5 +182,5 @@ export function downloadBlob(blob: Blob, filename: string) {
   setTimeout(() => {
     document.body.removeChild(anchor);
     URL.revokeObjectURL(url);
-  }, 100);
+  }, 200);
 }

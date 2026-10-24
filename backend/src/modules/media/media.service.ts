@@ -1,16 +1,44 @@
 import ytsr from 'ytsr';
-import ytdl from '@distube/ytdl-core';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { Ytdl, parseVideoId } = require('@distube/ytdl-core');
 import { Request, Response } from 'express';
 import { SAMPLE_TRACKS } from './sampleAudio';
 import { NotFoundError } from '../../utils/errors';
 
+const ytdlClient = new Ytdl();
+
 export class MediaService {
   async search(query: string) {
-    const trimmed = query.trim().toLowerCase();
+    const trimmed = query.trim();
+
+    // Check if user entered a direct YouTube URL or 11-char video ID
+    const directVideoId = parseVideoId(trimmed);
+    if (directVideoId) {
+      try {
+        const info = await ytdlClient.getInfo(directVideoId);
+        const seconds = parseInt(info.videoDetails.lengthSeconds || '0', 10);
+        const mins = Math.floor(seconds / 60);
+        const secs = (seconds % 60).toString().padStart(2, '0');
+
+        return [
+          {
+            id: info.videoDetails.videoId,
+            title: info.videoDetails.title,
+            url: `/api/v1/media/stream?videoId=${info.videoDetails.videoId}`,
+            duration: `${mins}:${secs}`,
+            thumbnail: info.videoDetails.thumbnails?.[0]?.url || '',
+            author: info.videoDetails.author?.name || 'YouTube Creator',
+          },
+        ];
+      } catch (err) {
+        console.warn('Direct video ID lookup failed, continuing to search:', err);
+      }
+    }
 
     // Check if matching internal samples first
+    const lower = trimmed.toLowerCase();
     const matchingSamples = SAMPLE_TRACKS.filter(
-      (s) => s.title.toLowerCase().includes(trimmed) || s.author.toLowerCase().includes(trimmed)
+      (s) => s.title.toLowerCase().includes(lower) || s.author.toLowerCase().includes(lower)
     ).map((s) => ({
       id: s.id,
       title: s.title,
@@ -22,7 +50,7 @@ export class MediaService {
 
     try {
       // Use ytsr to search YouTube without an API key
-      const searchResults = await ytsr(query, { limit: 12 });
+      const searchResults = await ytsr(trimmed, { limit: 12 });
       const videoItems = searchResults.items.filter(
         (item): item is ytsr.Video => item.type === 'video'
       );
@@ -30,7 +58,7 @@ export class MediaService {
       const ytTracks = videoItems.map((v) => ({
         id: v.id,
         title: v.title,
-        url: v.url,
+        url: `/api/v1/media/stream?videoId=${v.id}`, // Proxied CORS audio stream
         duration: v.duration || '0:00',
         thumbnail: v.bestThumbnail?.url || (v.thumbnails && v.thumbnails[0]?.url) || '',
         author: v.author?.name || 'YouTube Creator',
@@ -39,7 +67,6 @@ export class MediaService {
       return [...matchingSamples, ...ytTracks];
     } catch (error) {
       console.warn('YouTube search fallback to sample tracks:', error);
-      // If external search fails (e.g. rate limit), return matching samples + all samples
       return matchingSamples.length > 0 ? matchingSamples : this.getSamples();
     }
   }
@@ -95,27 +122,18 @@ export class MediaService {
 
     // 2. Handle YouTube Stream
     try {
-      const cleanUrl = videoId.startsWith('http')
-        ? videoId
-        : `https://www.youtube.com/watch?v=${videoId}`;
+      const id = parseVideoId(videoId) || videoId;
 
-      // Validate URL
-      if (!ytdl.validateURL(cleanUrl) && !ytdl.validateID(videoId)) {
-        throw new NotFoundError(`Invalid YouTube video ID or URL: ${videoId}`);
-      }
-
-      // Stream highest quality audio
-      const audioStream = ytdl(cleanUrl, {
-        filter: 'audioonly',
+      const audioStream = ytdlClient.download(id, {
+        filter: { hasAudio: true, hasVideo: false },
         quality: 'highestaudio',
-        highWaterMark: 1 << 25, // 32MB buffer
       });
 
       res.setHeader('Content-Type', 'audio/webm');
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Accept-Ranges', 'bytes');
 
-      audioStream.on('error', (err) => {
+      audioStream.on('error', (err: any) => {
         console.error('ytdl stream error:', err);
         if (!res.headersSent) {
           res.status(502).json({

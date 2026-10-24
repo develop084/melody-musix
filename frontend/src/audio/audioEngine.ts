@@ -167,17 +167,16 @@ class AudioEngine {
           durationToPlay = clipDurationSec - elapsedInClip;
         }
 
-        // Apply Fade-In / Fade-Out ramps
-        const fadeInSec = (clip.fadeInMs || 150) / 1000;
-        const fadeOutSec = (clip.fadeOutMs || 150) / 1000;
+        // Apply Fade-In / Fade-Out linear ramps safely
+        const clipDur = Math.max(0.05, durationToPlay);
+        const maxFade = clipDur * 0.45;
+        const actualFadeIn = Math.min((clip.fadeInMs || 150) / 1000, maxFade);
+        const actualFadeOut = Math.min((clip.fadeOutMs || 150) / 1000, maxFade);
 
-        clipGain.gain.setValueAtTime(0.001, whenToPlay);
-        clipGain.gain.exponentialRampToValueAtTime(Math.max(0.001, baseVolume), whenToPlay + fadeInSec);
-        clipGain.gain.setValueAtTime(
-          Math.max(0.001, baseVolume),
-          Math.max(whenToPlay + fadeInSec, whenToPlay + durationToPlay - fadeOutSec)
-        );
-        clipGain.gain.exponentialRampToValueAtTime(0.001, whenToPlay + durationToPlay);
+        clipGain.gain.setValueAtTime(0, whenToPlay);
+        clipGain.gain.linearRampToValueAtTime(baseVolume, whenToPlay + actualFadeIn);
+        clipGain.gain.setValueAtTime(baseVolume, whenToPlay + clipDur - actualFadeOut);
+        clipGain.gain.linearRampToValueAtTime(0, whenToPlay + clipDur);
 
         clipSource.connect(clipGain);
         clipGain.connect(trackGainNode);
