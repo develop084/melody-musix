@@ -20,11 +20,12 @@ export class MediaService {
         const mins = Math.floor(seconds / 60);
         const secs = (seconds % 60).toString().padStart(2, '0');
 
+        const id = info.videoDetails.id || directVideoId;
         return [
           {
-            id: info.videoDetails.videoId,
+            id,
             title: info.videoDetails.title,
-            url: `/api/v1/media/stream?videoId=${info.videoDetails.videoId}`,
+            url: `/api/v1/media/stream?videoId=${id}`,
             duration: `${mins}:${secs}`,
             thumbnail: info.videoDetails.thumbnails?.[0]?.url || '',
             author: info.videoDetails.author?.name || 'YouTube Creator',
