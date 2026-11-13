@@ -7,15 +7,41 @@ import { Request, Response } from 'express';
 import { SAMPLE_TRACKS } from './sampleAudio';
 import { NotFoundError } from '../../utils/errors';
 
+import path from 'path';
+
 function getYtDlpPath(): string | null {
   const candidates = [
     '/usr/local/bin/yt-dlp',
     '/usr/bin/yt-dlp',
+    '/home/ubuntu/.local/bin/yt-dlp',
     '/tmp/bin/yt-dlp',
   ];
   for (const c of candidates) {
     if (fs.existsSync(c)) {
+      try {
+        fs.accessSync(c, fs.constants.X_OK);
+      } catch {
+        try {
+          fs.chmodSync(c, 0o755);
+        } catch {}
+      }
       return c;
+    }
+  }
+  return null;
+}
+
+function getCookiesPath(): string | null {
+  const candidates = [
+    process.env.YOUTUBE_COOKIES_PATH,
+    '/var/www/melody-studio/cookies.txt',
+    path.resolve(process.cwd(), 'cookies.txt'),
+    path.resolve(__dirname, '../../../../cookies.txt'),
+  ].filter(Boolean) as string[];
+
+  for (const p of candidates) {
+    if (fs.existsSync(p)) {
+      return p;
     }
   }
   return null;
@@ -182,14 +208,22 @@ export class MediaService {
       try {
         const videoUrl = `https://www.youtube.com/watch?v=${id}`;
 
-        const proc = spawn(ytDlpBinary, [
+        const ytDlpArgs = [
+          '--extractor-args', 'youtube:player_client=android,ios',
           '-f', 'ba/b',
           '--no-playlist',
           '--quiet',
           '--no-warnings',
           '-o', '-',
           videoUrl,
-        ]);
+        ];
+
+        const cookieFile = getCookiesPath();
+        if (cookieFile) {
+          ytDlpArgs.unshift('--cookies', cookieFile);
+        }
+
+        const proc = spawn(ytDlpBinary, ytDlpArgs);
 
         let hasData = false;
 
