@@ -208,24 +208,30 @@ export class MediaService {
       try {
         const videoUrl = `https://www.youtube.com/watch?v=${id}`;
 
+        const cookieFile = getCookiesPath();
         const ytDlpArgs = [
-          '--extractor-args', 'youtube:player_client=android,ios',
           '-f', 'ba/b',
           '--no-playlist',
-          '--quiet',
           '--no-warnings',
           '-o', '-',
           videoUrl,
         ];
 
-        const cookieFile = getCookiesPath();
         if (cookieFile) {
           ytDlpArgs.unshift('--cookies', cookieFile);
+        } else {
+          ytDlpArgs.unshift('--extractor-args', 'youtube:player_client=android,ios,mweb');
         }
 
-        const proc = spawn(ytDlpBinary, ytDlpArgs);
+        const env = {
+          ...process.env,
+          PATH: `/usr/local/bin:/usr/bin:/bin:${process.env.PATH || ''}`,
+        };
+
+        const proc = spawn(ytDlpBinary, ytDlpArgs, { env });
 
         let hasData = false;
+        let stderrData = '';
 
         proc.stdout.on('data', (chunk) => {
           if (!hasData) {
@@ -235,6 +241,10 @@ export class MediaService {
             res.setHeader('Accept-Ranges', 'bytes');
           }
           res.write(chunk);
+        });
+
+        proc.stderr.on('data', (chunk) => {
+          stderrData += chunk.toString();
         });
 
         proc.stdout.on('end', () => {
@@ -252,7 +262,7 @@ export class MediaService {
 
         proc.on('close', (code) => {
           if (!hasData) {
-            console.warn(`yt-dlp closed with code ${code} without data, attempting ytdl fallback`);
+            console.warn(`yt-dlp closed with code ${code} without data. Stderr: ${stderrData.slice(-500)}`);
             if (!res.headersSent) {
               this.streamWithYtdl(id, req, res);
             }
