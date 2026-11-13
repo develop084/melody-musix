@@ -1,9 +1,25 @@
 import ytsr from 'ytsr';
+import { spawn } from 'child_process';
+import fs from 'fs';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { Ytdl, Client, parseVideoId, chooseFormat } = require('@distube/ytdl-core');
 import { Request, Response } from 'express';
 import { SAMPLE_TRACKS } from './sampleAudio';
 import { NotFoundError } from '../../utils/errors';
+
+function getYtDlpPath(): string | null {
+  const candidates = [
+    '/usr/local/bin/yt-dlp',
+    '/usr/bin/yt-dlp',
+    '/tmp/bin/yt-dlp',
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) {
+      return c;
+    }
+  }
+  return null;
+}
 
 const ytdlClient = new Ytdl({
   cookie: process.env.YOUTUBE_COOKIE || undefined,
@@ -158,10 +174,77 @@ export class MediaService {
       return res.end(buffer);
     }
 
-    // 2. Handle YouTube Stream
-    try {
-      const id = parseVideoId(videoId) || videoId;
+    const id = parseVideoId(videoId) || videoId;
 
+    // 2. Primary Method: yt-dlp native extraction (Immune to cloud/datacenter IP blocking)
+    const ytDlpBinary = getYtDlpPath();
+    if (ytDlpBinary) {
+      try {
+        const videoUrl = `https://www.youtube.com/watch?v=${id}`;
+
+        const proc = spawn(ytDlpBinary, [
+          '-f', 'ba/b',
+          '--no-playlist',
+          '--quiet',
+          '--no-warnings',
+          '-o', '-',
+          videoUrl,
+        ]);
+
+        let hasData = false;
+
+        proc.stdout.on('data', (chunk) => {
+          if (!hasData) {
+            hasData = true;
+            res.setHeader('Content-Type', 'audio/webm');
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            res.setHeader('Accept-Ranges', 'bytes');
+          }
+          res.write(chunk);
+        });
+
+        proc.stdout.on('end', () => {
+          if (hasData) {
+            res.end();
+          }
+        });
+
+        proc.on('error', (err) => {
+          console.warn('yt-dlp error, attempting ytdl fallback:', err);
+          if (!hasData && !res.headersSent) {
+            this.streamWithYtdl(id, req, res);
+          }
+        });
+
+        proc.on('close', (code) => {
+          if (!hasData) {
+            console.warn(`yt-dlp closed with code ${code} without data, attempting ytdl fallback`);
+            if (!res.headersSent) {
+              this.streamWithYtdl(id, req, res);
+            }
+          }
+        });
+
+        req.on('close', () => {
+          if (!proc.killed) {
+            try {
+              proc.kill('SIGKILL');
+            } catch {}
+          }
+        });
+
+        return;
+      } catch (ytDlpErr) {
+        console.warn('yt-dlp failed, falling back to ytdl:', ytDlpErr);
+      }
+    }
+
+    // 3. Fallback Method: @distube/ytdl-core
+    await this.streamWithYtdl(id, req, res);
+  }
+
+  private async streamWithYtdl(id: string, _req: Request, res: Response) {
+    try {
       let format: any;
       let info: any;
       try {
@@ -207,7 +290,7 @@ export class MediaService {
       audioStream.pipe(res);
     } catch (error: any) {
       console.error('YouTube audio stream exception:', error);
-      throw new NotFoundError(`Unable to resolve audio stream for '${videoId}'`);
+      throw new NotFoundError(`Unable to resolve audio stream for '${id}'`);
     }
   }
 }

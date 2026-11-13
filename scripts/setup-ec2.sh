@@ -74,9 +74,16 @@ else
 fi
 
 # 2. System update and essential tools
-echo "📦 Step 2/7: Installing system packages (Nginx, Certbot, Git, Curl, Build tools)..."
+echo "📦 Step 2/7: Installing system packages (Nginx, Certbot, Git, Curl, Build tools, FFmpeg)..."
 apt-get update -y
-apt-get install -y curl git ufw nginx certbot python3-certbot-nginx build-essential
+apt-get install -y curl git ufw nginx certbot python3-certbot-nginx build-essential ffmpeg
+
+# Install yt-dlp standalone binary for rock-solid YouTube audio streaming on cloud IPs
+if ! command -v yt-dlp >/dev/null 2>&1; then
+    echo "Installing latest yt-dlp binary..."
+    curl -fsSL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
+    chmod a+rx /usr/local/bin/yt-dlp
+fi
 
 # 3. Install Node.js 20 LTS & PM2
 echo "📦 Step 3/7: Installing Node.js 20 LTS and PM2..."
