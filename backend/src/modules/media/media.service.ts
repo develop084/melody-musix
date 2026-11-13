@@ -1,11 +1,14 @@
 import ytsr from 'ytsr';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const { Ytdl, parseVideoId, chooseFormat } = require('@distube/ytdl-core');
+const { Ytdl, Client, parseVideoId, chooseFormat } = require('@distube/ytdl-core');
 import { Request, Response } from 'express';
 import { SAMPLE_TRACKS } from './sampleAudio';
 import { NotFoundError } from '../../utils/errors';
 
-const ytdlClient = new Ytdl();
+const ytdlClient = new Ytdl({
+  cookie: process.env.YOUTUBE_COOKIE || undefined,
+  clients: [Client.WebEmbedded, Client.Tv, Client.VisionOS, Client.Mweb],
+});
 const infoCache = new Map<string, { info: any; timestamp: number }>();
 
 async function getCachedInfo(id: string): Promise<any> {
@@ -160,8 +163,9 @@ export class MediaService {
       const id = parseVideoId(videoId) || videoId;
 
       let format: any;
+      let info: any;
       try {
-        const info = await getCachedInfo(id);
+        info = await getCachedInfo(id);
         format = chooseFormat(info.formats, {
           filter: { hasAudio: true, hasVideo: false },
           quality: 'highestaudio',
@@ -178,19 +182,23 @@ export class MediaService {
         res.setHeader('Content-Length', format.contentLength);
       }
 
-      const audioStream = format
-        ? ytdlClient.download(id, { format })
+      const audioStream = info
+        ? ytdlClient.download(info, {
+            filter: { hasAudio: true, hasVideo: false },
+            quality: 'highestaudio',
+            ...(format ? { format } : {}),
+          })
         : ytdlClient.download(id, {
             filter: { hasAudio: true, hasVideo: false },
             quality: 'highestaudio',
           });
 
       audioStream.on('error', (err: any) => {
-        console.error('ytdl stream error:', err);
+        console.error('ytdl stream error:', err?.message || err);
         if (!res.headersSent) {
           res.status(502).json({
             status: 502,
-            message: 'Failed to stream audio from YouTube',
+            message: err?.message || 'Failed to stream audio from YouTube',
             timestamp: new Date().toISOString(),
           });
         }

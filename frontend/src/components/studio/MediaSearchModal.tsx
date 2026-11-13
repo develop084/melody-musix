@@ -128,9 +128,15 @@ export function MediaSearchModal({ isOpen, onClose, initialQuery }: MediaSearchM
       const audio = new Audio(track.url);
       previewAudioRef.current = audio;
 
+      audio.onerror = () => {
+        stopAudioPreview();
+        setError(`Cannot stream "${track.title}" from YouTube on cloud IP. Please audition another track or use "Upload File".`);
+      };
+
       audio.play().catch((playErr) => {
         console.warn('Audio preview playback error:', playErr);
         stopAudioPreview();
+        setError(`Cannot stream "${track.title}" from YouTube on cloud IP. Please audition another track or use "Upload File".`);
       });
 
       audio.onended = () => {
@@ -156,7 +162,14 @@ export function MediaSearchModal({ isOpen, onClose, initialQuery }: MediaSearchM
     } catch (err: any) {
       setLoadingAudioId(null);
       setIsProcessingAudio(false);
-      setError(`Failed to decode audio: ${err.message || 'Stream error'}`);
+      const isGatewayError = err.message?.includes('Bad Gateway') || err.message?.includes('502');
+      if (isGatewayError) {
+        setError(
+          `YouTube cloud restriction: YouTube blocked direct streaming for this video from datacenter IPs. Please try another video, choose from "Sound Presets", or upload audio directly via "Upload File".`
+        );
+      } else {
+        setError(`Failed to decode audio: ${err.message || 'Stream error'}`);
+      }
     }
   };
 
