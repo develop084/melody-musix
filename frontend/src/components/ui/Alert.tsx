@@ -16,10 +16,10 @@ export function Alert({ className, variant = 'info', title, children, ...props }
   };
 
   const variants = {
-    info: 'bg-cyan-950/40 text-cyan-200 border-cyan-800/60',
-    success: 'bg-emerald-950/40 text-emerald-200 border-emerald-800/60',
-    warning: 'bg-amber-950/40 text-amber-200 border-amber-800/60',
-    destructive: 'bg-red-950/40 text-red-200 border-red-800/60',
+    info: 'bg-slate-50 text-slate-800 border-slate-200',
+    success: 'bg-emerald-50 text-emerald-900 border-emerald-200',
+    warning: 'bg-amber-50 text-amber-900 border-amber-200',
+    destructive: 'bg-rose-50 text-rose-900 border-rose-200',
   };
 
   return (

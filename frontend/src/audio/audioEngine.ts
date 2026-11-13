@@ -80,6 +80,13 @@ class AudioEngine {
     this.masterGainNode.gain.setTargetAtTime(clamped, this.ctx.currentTime, 0.05);
   }
 
+  // Warm up audio context on first user gesture
+  public warmUp() {
+    try {
+      this.getContext();
+    } catch {}
+  }
+
   // Synthesized real-time metronome click (zero asset dependencies)
   public playClick(isAccent = false) {
     try {
@@ -96,9 +103,27 @@ class AudioEngine {
       osc.connect(gain);
       gain.connect(this.getMasterBus());
 
+      osc.onended = () => {
+        try {
+          osc.disconnect();
+          gain.disconnect();
+        } catch {}
+      };
+
       osc.start(ctx.currentTime);
       osc.stop(ctx.currentTime + 0.04);
     } catch {}
+  }
+
+  // Pre-load preset audio loops in background idle task for 0ms initial latency
+  public async preloadPresetUrls(urls: string[]): Promise<void> {
+    await Promise.all(
+      urls.map((url) =>
+        this.decodeAudioFromUrl(url).catch(() => {
+          // Preload errors silently ignored to keep runtime smooth
+        })
+      )
+    );
   }
 
   // Fetch and decode audio stream into AudioBuffer

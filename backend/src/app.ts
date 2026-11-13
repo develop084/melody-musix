@@ -62,7 +62,9 @@ export function createApp() {
   app.use('/api/v1/projects', projectRouter);
 
   // Serve Single-App Frontend Build in Production
-  const frontendDistPath = path.resolve(__dirname, '../../frontend/dist');
+  const frontendDistPath = fs.existsSync(path.resolve(__dirname, '../../frontend/dist'))
+    ? path.resolve(__dirname, '../../frontend/dist')
+    : path.resolve(process.cwd(), 'frontend/dist');
   if (fs.existsSync(frontendDistPath)) {
     app.use(express.static(frontendDistPath));
     app.get('*', (req: Request, res: Response, next) => {

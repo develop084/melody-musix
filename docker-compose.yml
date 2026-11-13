@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: melody-studio
+    restart: always
+    ports:
+      - "127.0.0.1:4000:4000"
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+      - DATABASE_URL=file:/app/backend/prisma/dev.db
+    volumes:
+      - sqlite_data:/app/backend/prisma
+
+volumes:
+  sqlite_data:

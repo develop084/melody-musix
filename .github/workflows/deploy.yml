@@ -1,0 +1,85 @@
+name: Deploy to AWS EC2
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  verify:
+    name: Build & Verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate --schema=backend/prisma/schema.prisma
+
+      - name: Run Build Verification
+        run: npm run build
+
+  deploy:
+    name: Deploy to EC2 Instance
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: ${{ secrets.EC2_PORT || 22 }}
+          script_stop: true
+          script: |
+            set -e
+            APP_DIR="${{ secrets.EC2_APP_DIR || '/var/www/melody-studio' }}"
+            echo "🚀 Connecting to EC2 and navigating to $APP_DIR..."
+            cd "$APP_DIR"
+
+            # 1. Fetch latest changes
+            CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
+            echo "📥 Pulling latest commits from origin/$CURRENT_BRANCH..."
+            git fetch origin "$CURRENT_BRANCH"
+            git reset --hard "origin/$CURRENT_BRANCH"
+
+            # 2. Install production dependencies
+            echo "📦 Installing clean dependencies..."
+            npm ci
+
+            # 3. Prisma schema sync
+            echo "🔄 Updating Prisma Client & syncing database..."
+            npx prisma generate --schema=backend/prisma/schema.prisma
+            npm run db:push
+
+            # 4. Build frontend & backend
+            echo "🔨 Building unified production distribution..."
+            npm run build
+
+            # 5. Reload PM2 process manager
+            echo "🔁 Reloading PM2 process..."
+            if pm2 describe melody-studio > /dev/null 2>&1; then
+              pm2 reload ecosystem.config.cjs --update-env
+            else
+              pm2 start ecosystem.config.cjs --env production
+            fi
+            pm2 save
+
+            # 6. Verify health
+            echo "🩺 Validating application health..."
+            sleep 3
+            curl -f http://127.0.0.1:4000/api/v1/health || { echo "❌ Health check failed!"; exit 1; }
+
+            echo "✅ Auto-deployment completed successfully!"

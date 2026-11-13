@@ -54,7 +54,12 @@ interface StudioState {
   addClipToSelectedTrack: (timelineStartMs?: number) => void;
   addDirectSampleClip: (mediaTrack: MediaTrack, targetTrackId?: string) => Promise<void>;
   removeClip: (trackId: string, clipId: string) => void;
-  updateClipPosition: (trackId: string, clipId: string, timelineStartMs: number) => void;
+  updateClipPosition: (targetTrackId: string, clipId: string, timelineStartMs: number, sourceTrackId?: string) => void;
+  updateClipFraming: (
+    trackId: string,
+    clipId: string,
+    updates: Partial<Pick<AudioClip, 'timelineStartMs' | 'durationMs' | 'startOffsetMs'>>
+  ) => void;
   updateClipVolume: (trackId: string, clipId: string, volume: number) => void;
 
   addTrack: (name?: string) => void;
@@ -116,6 +121,25 @@ const DEFAULT_TRACKS: Track[] = [
 ];
 
 const cloneTracks = (tracks: Track[]): Track[] => JSON.parse(JSON.stringify(tracks));
+
+// High-performance zero-overhead direct RAF listeners (bypasses React virtual DOM during playback)
+export type PlayheadListener = (timeMs: number, pct: number) => void;
+const playheadListeners = new Set<PlayheadListener>();
+
+export const registerPlayheadListener = (listener: PlayheadListener) => {
+  playheadListeners.add(listener);
+  return () => {
+    playheadListeners.delete(listener);
+  };
+};
+
+export const notifyPlayheadListeners = (timeMs: number, pct: number) => {
+  for (const listener of playheadListeners) {
+    try {
+      listener(timeMs, pct);
+    } catch {}
+  }
+};
 
 let playbackRafId: number | null = null;
 let playbackStartTimestamp = 0;
@@ -322,13 +346,65 @@ export const useStudioStore = create<StudioState>((set, get) => ({
     });
   },
 
-  updateClipPosition: (trackId, clipId, timelineStartMs) => {
+  updateClipPosition: (targetTrackId, clipId, timelineStartMs, sourceTrackId) => {
+    const { tracks, history } = get();
+    const fromTrackId = sourceTrackId || targetTrackId;
+
+    let targetClip: AudioClip | null = null;
+
+    // Find and extract the clip from the origin track
+    const tracksWithoutClip = tracks.map((track) => {
+      if (track.id === fromTrackId) {
+        const found = track.clips.find((c) => c.id === clipId);
+        if (found) {
+          targetClip = { ...found, timelineStartMs: Math.max(0, timelineStartMs) };
+        }
+        return {
+          ...track,
+          clips: track.clips.filter((c) => c.id !== clipId),
+        };
+      }
+      return track;
+    });
+
+    if (!targetClip) return;
+
+    // Insert the clip into the destination track
+    const updated = tracksWithoutClip.map((track) => {
+      if (track.id === targetTrackId) {
+        return {
+          ...track,
+          clips: [...track.clips, targetClip!].sort((a, b) => a.timelineStartMs - b.timelineStartMs),
+        };
+      }
+      return track;
+    });
+
+    const currentSnapshot = cloneTracks(tracks);
+    set({
+      tracks: updated,
+      history: [currentSnapshot, ...history].slice(0, 30),
+      future: [],
+      canUndo: true,
+      canRedo: false,
+    });
+  },
+
+  updateClipFraming: (trackId, clipId, updates) => {
     const { tracks, history } = get();
     const updated = tracks.map((track) => {
       if (track.id === trackId) {
         return {
           ...track,
-          clips: track.clips.map((c) => (c.id === clipId ? { ...c, timelineStartMs: Math.max(0, timelineStartMs) } : c)),
+          clips: track.clips.map((c) => {
+            if (c.id !== clipId) return c;
+            return {
+              ...c,
+              ...(updates.timelineStartMs !== undefined ? { timelineStartMs: Math.max(0, updates.timelineStartMs) } : {}),
+              ...(updates.durationMs !== undefined ? { durationMs: Math.max(200, updates.durationMs) } : {}),
+              ...(updates.startOffsetMs !== undefined ? { startOffsetMs: Math.max(0, updates.startOffsetMs) } : {}),
+            };
+          }),
         };
       }
       return track;
@@ -421,7 +497,13 @@ export const useStudioStore = create<StudioState>((set, get) => ({
     });
   },
 
-  setCurrentTimeMs: (ms) => set({ currentTimeMs: ms }),
+  setCurrentTimeMs: (ms) => {
+    const { durationMs } = get();
+    const clamped = Math.max(0, Math.min(durationMs, ms));
+    const pct = (clamped / durationMs) * 100;
+    notifyPlayheadListeners(clamped, pct);
+    set({ currentTimeMs: clamped });
+  },
   setIsPlaying: (playing) => set({ isPlaying: playing }),
 
   isLooping: false,
@@ -443,25 +525,32 @@ export const useStudioStore = create<StudioState>((set, get) => ({
     const { tracks, currentTimeMs, durationMs, isLooping } = get();
     audioEngine.playTimeline(tracks, currentTimeMs, () => {
       if (get().isLooping) {
-        set({ currentTimeMs: 0 });
+        get().setCurrentTimeMs(0);
         get().playMasterTimeline();
       } else {
         get().stopMasterTimeline();
-        set({ currentTimeMs: 0 });
+        get().setCurrentTimeMs(0);
       }
     });
 
     playbackStartTimestamp = performance.now();
     playbackInitialOffsetMs = currentTimeMs;
     let lastMetronomeBeat = -1;
+    let lastThrottledTime = 0;
     set({ isPlaying: true });
 
     const tick = () => {
       if (!get().isPlaying) return;
-      const elapsed = performance.now() - playbackStartTimestamp;
+      const now = performance.now();
+      const elapsed = now - playbackStartTimestamp;
       const current = playbackInitialOffsetMs + elapsed;
+      const curDurationMs = get().durationMs;
+      const pct = Math.min(100, Math.max(0, (current / curDurationMs) * 100));
 
-      // Play synchronized metronome clicks if enabled
+      // 1. High-frequency 60/120fps direct DOM listener (ZERO React overhead)
+      notifyPlayheadListeners(current, pct);
+
+      // 2. Play synchronized metronome clicks if enabled
       if (get().isMetronomeActive) {
         const beatMs = (60 / get().bpm) * 1000;
         const currentBeat = Math.floor(current / beatMs);
@@ -471,20 +560,26 @@ export const useStudioStore = create<StudioState>((set, get) => ({
         }
       }
 
-      if (current >= durationMs) {
+      // Check loop / boundary condition
+      if (current >= curDurationMs) {
         if (get().isLooping) {
           get().stopMasterTimeline();
-          set({ currentTimeMs: 0 });
+          get().setCurrentTimeMs(0);
           get().playMasterTimeline();
           return;
         } else {
           get().stopMasterTimeline();
-          set({ currentTimeMs: 0 });
+          get().setCurrentTimeMs(0);
           return;
         }
       }
 
-      set({ currentTimeMs: current });
+      // 3. Throttle Zustand state update to 10Hz (every 100ms) to prevent React re-render churn
+      if (now - lastThrottledTime >= 100) {
+        lastThrottledTime = now;
+        set({ currentTimeMs: current });
+      }
+
       playbackRafId = requestAnimationFrame(tick);
     };
 
@@ -497,6 +592,9 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       playbackRafId = null;
     }
     audioEngine.stopTimeline();
+    const curTime = get().currentTimeMs;
+    const dur = get().durationMs;
+    notifyPlayheadListeners(curTime, (curTime / dur) * 100);
     set({ isPlaying: false });
   },
 

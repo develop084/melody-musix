@@ -2,8 +2,10 @@ import dotenv from 'dotenv';
 import { z } from 'zod';
 import path from 'path';
 
-// Load .env
+// Load .env from backend/.env, project root .env, or current working directory
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
+dotenv.config();
 
 const envSchema = z.object({
   PORT: z.coerce.number().default(4000),

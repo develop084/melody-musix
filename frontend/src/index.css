@@ -4,41 +4,40 @@
 
 @layer base {
   :root {
-    --background: 224 71% 4%;
-    --foreground: 210 40% 98%;
-    --card: 224 71% 7%;
-    --card-foreground: 210 40% 98%;
-    --border: 217 33% 17%;
-    --primary: 187 92% 45%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --primary-hover: 187 92% 38%;
-    --muted: 217 33% 15%;
-    --muted-foreground: 215 20% 65%;
+    --background: 210 40% 98%;
+    --foreground: 222.2 47.4% 11.2%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 47.4% 11.2%;
+    --border: 214.3 31.8% 91.4%;
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 217.2 32.6% 17.5%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
   }
 
   body {
-    @apply bg-[#0b0d13] text-slate-100 antialiased font-sans;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    @apply bg-slate-50 text-slate-900 antialiased font-sans;
   }
 
-  /* Studio hardware custom scrollbars */
+  /* Custom smooth light scrollbars */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
   }
   ::-webkit-scrollbar-track {
-    background: #090a0f;
+    background: #f8fafc;
   }
   ::-webkit-scrollbar-thumb {
-    background: #232733;
-    border-radius: 4px;
+    background: #cbd5e1;
+    border-radius: 3px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #374151;
+    background: #94a3b8;
   }
 }
 
-/* Audio fader / range slider hardware styling */
+/* Audio fader / range slider styling */
 input[type="range"] {
-  accent-color: #06b6d4;
+  accent-color: #0f172a;
 }

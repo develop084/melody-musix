@@ -177,4 +177,135 @@ export const SAMPLE_TRACKS = [
         return pluck * Math.exp(-noteT * 2.2) * 0.5;
       }),
   },
+  {
+    id: 'sample-punjabi-dhol',
+    title: 'Punjabi Dhol Beats - Bhangra Groove',
+    duration: '0:04',
+    author: 'Desi Presets',
+    url: '/api/v1/media/stream?videoId=sample-punjabi-dhol',
+    thumbnail: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&q=80',
+    generate: () =>
+      generateWavBuffer(4.0, (t) => {
+        // Bhangra 4-beat rhythm (Dha, Ge, Na, Tin)
+        const beatT = t % 1;
+        const beatNum = Math.floor(t % 4);
+        let sound = 0;
+
+        // Dhol Dagga (deep bass boom ~70Hz with resonant decay)
+        if (beatNum === 0 || beatNum === 2 || (beatNum === 3 && beatT > 0.5)) {
+          const dt = beatNum === 3 ? beatT - 0.5 : beatT;
+          const bassFreq = 75 * Math.exp(-dt * 15);
+          sound += Math.sin(2 * Math.PI * bassFreq * dt) * Math.exp(-dt * 7) * 0.9;
+        }
+
+        // Tilli (sharp high-frequency wood stick strike on snare)
+        const tilliBeats = [0, 0.25, 0.5, 0.75];
+        for (const tb of tilliBeats) {
+          if (beatT >= tb && beatT < tb + 0.15) {
+            const tt = beatT - tb;
+            const stick = (Math.random() * 2 - 1) * Math.exp(-tt * 60) * 0.35;
+            const woodTone = Math.sin(2 * Math.PI * 1400 * tt) * Math.exp(-tt * 40) * 0.25;
+            sound += stick + woodTone;
+          }
+        }
+
+        return sound * 0.8;
+      }),
+  },
+  {
+    id: 'sample-sitar-raga',
+    title: 'Bollywood Sitar - Melodic Raga Theme',
+    duration: '0:08',
+    author: 'Desi Presets',
+    url: '/api/v1/media/stream?videoId=sample-sitar-raga',
+    thumbnail: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&q=80',
+    generate: () =>
+      generateWavBuffer(8.0, (t, ch) => {
+        // Raga Yaman notes: Sa (261.63), Re (293.66), Ga (329.63), Tivra Ma (369.99), Pa (392.00), Dha (440.00), Ni (493.88)
+        const ragaNotes = [261.63, 293.66, 329.63, 369.99, 392.0, 440.0, 493.88, 523.25];
+        const step = Math.floor((t * 2) % ragaNotes.length);
+        const freq = ragaNotes[step];
+        const noteT = (t * 2) % 1;
+
+        // Sitar buzz/jawari simulation (rich odd harmonics with slight pitch bend)
+        const bend = 1 + 0.03 * Math.sin(noteT * Math.PI);
+        const fundamental = Math.sin(2 * Math.PI * freq * bend * t);
+        const h2 = Math.sin(2 * Math.PI * freq * 2 * bend * t) * 0.5;
+        const h3 = Math.sin(2 * Math.PI * freq * 3 * bend * t) * 0.35;
+        const h4 = Math.sin(2 * Math.PI * freq * 4 * bend * t) * 0.2;
+        const sitar = (fundamental + h2 + h3 + h4) * Math.exp(-noteT * 2.8);
+
+        // Tanpura / Drone string backing (Sa & Pa)
+        const droneSa = Math.sin(2 * Math.PI * 130.81 * t) * 0.15;
+        const dronePa = Math.sin(2 * Math.PI * 196.0 * t + ch * 0.2) * 0.12;
+
+        return (sitar * 0.65 + droneSa + dronePa) * 0.7;
+      }),
+  },
+  {
+    id: 'sample-desi-hiphop',
+    title: 'Gully Boom-Bap - Mumbai Hip-Hop Groove',
+    duration: '0:04',
+    author: 'Desi Presets',
+    url: '/api/v1/media/stream?videoId=sample-desi-hiphop',
+    thumbnail: 'https://images.unsplash.com/photo-1519892300165-cb5542fb47c7?w=300&q=80',
+    generate: () =>
+      generateWavBuffer(4.0, (t) => {
+        const beatT = t % 1;
+        const beatNum = Math.floor(t % 4);
+        let sound = 0;
+
+        // Sub Kick 808
+        if (beatNum === 0 || (beatNum === 2 && beatT > 0.45)) {
+          const kt = beatNum === 0 ? beatT : beatT - 0.45;
+          const kFreq = 95 * Math.exp(-kt * 18);
+          sound += Math.sin(2 * Math.PI * kFreq * kt) * Math.exp(-kt * 6) * 0.95;
+        }
+
+        // Snare & Clap
+        if (beatNum === 1 || beatNum === 3) {
+          const st = beatT;
+          const noise = (Math.random() * 2 - 1) * Math.exp(-st * 22);
+          const tone = Math.sin(2 * Math.PI * 220 * st) * Math.exp(-st * 25);
+          sound += (noise * 0.7 + tone * 0.3) * 0.8;
+        }
+
+        // Tabla Dayan accent on offbeats
+        if (beatT > 0.75) {
+          const tt = beatT - 0.75;
+          sound += Math.sin(2 * Math.PI * 440 * tt) * Math.exp(-tt * 35) * 0.4;
+        }
+
+        return sound * 0.85;
+      }),
+  },
+  {
+    id: 'sample-chai-lofi',
+    title: 'Monsoon Chai - Warm Lo-Fi Keys',
+    duration: '0:08',
+    author: 'Desi Presets',
+    url: '/api/v1/media/stream?videoId=sample-chai-lofi',
+    thumbnail: 'https://images.unsplash.com/photo-1520523839898-50712825e3a7?w=300&q=80',
+    generate: () =>
+      generateWavBuffer(8.0, (t, ch) => {
+        // Melodic nostalgic chords: Dm7 -> G7 -> Cmaj7
+        const chord1 = [293.66, 349.23, 440.0, 523.25];
+        const chord2 = [246.94, 311.13, 392.0, 493.88];
+        const chord3 = [261.63, 329.63, 392.0, 493.88];
+        const step = Math.floor(t % 6);
+        const currentChord = step < 2 ? chord1 : step < 4 ? chord2 : chord3;
+        const chordT = t % 2;
+        const env = Math.exp(-chordT * 1.1);
+
+        let sum = 0;
+        for (const freq of currentChord) {
+          // Add subtle warm vinyl wow/flutter
+          const flutter = 1 + 0.003 * Math.sin(2 * Math.PI * 4 * t);
+          sum += Math.sin(2 * Math.PI * freq * flutter * t + ch * 0.1) * (1 / currentChord.length);
+        }
+
+        return sum * env * 0.5;
+      }),
+  },
 ];
+
