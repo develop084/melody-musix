@@ -22,6 +22,21 @@ export function createApp() {
   app.use(
     helmet({
       crossOriginResourcePolicy: { policy: 'cross-origin' },
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+          styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+          fontSrc: ["'self'", "https://fonts.gstatic.com", "https://fonts.googleapis.com", "data:"],
+          imgSrc: ["'self'", "data:", "blob:", "https:"],
+          connectSrc: ["'self'", "blob:", "data:"],
+          mediaSrc: ["'self'", "blob:", "data:"],
+          workerSrc: ["'self'", "blob:"],
+          childSrc: ["'self'", "blob:"],
+          objectSrc: ["'none'"],
+          frameSrc: ["'self'"],
+        },
+      },
     })
   );
   app.use(
